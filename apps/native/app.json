@@ -44,6 +44,19 @@
 		"experiments": {
 			"typedRoutes": true,
 			"reactCompiler": true
+		},
+		"extra": {
+			"router": {},
+			"eas": {
+				"projectId": "6586b9fa-c73e-4d68-8a5a-8b06c5cac53f"
+			}
+		},
+		"owner": "ashtonmths.dev",
+		"runtimeVersion": {
+			"policy": "appVersion"
+		},
+		"updates": {
+			"url": "https://u.expo.dev/6586b9fa-c73e-4d68-8a5a-8b06c5cac53f"
 		}
 	}
 }
