@@ -1,115 +1,62 @@
 # TripShare
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Self, TRPC, and more.
+TripShare is a private carpool fuel-expense ledger for a vehicle owner. Passengers are owner-managed contacts: they never create accounts or access the app. The Next.js PWA and native Expo app share one authenticated tRPC API, Drizzle/PostgreSQL database, and integer-paise accounting library.
 
 ## Features
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **tRPC** - End-to-end type-safe APIs
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Biome** - Linting and formatting
-- **PWA** - Progressive Web App support
-- **Turborepo** - Optimized monorepo build system
+- Owner accounts with Better Auth email/password sessions
+- Private groups with vehicle, average mileage, normal one-way distance, and tracking start date
+- Contact-only group members with active/inactive status
+- One-way and return journeys with explicit attendance
+- Backend-only live petrol pricing for Udupi, Karnataka via IndianAPI
+- Clear manual price fallback when IndianAPI is missing, unavailable, or malformed
+- Immutable journey snapshots of distance, mileage, petrol price, source, total cost, and participant shares
+- Manual partial payments by UPI, cash, bank transfer, or other method
+- Responsive Next.js PWA and genuine Expo Router native screens with light/dark support
 
-## Getting Started
+## Local setup
 
-First, install the dependencies:
+Requirements: Node.js, pnpm 11, and PostgreSQL.
 
-```bash
-pnpm install
-```
+1. Copy or fill the existing `.env` files without committing secrets.
+2. Set these server values in `apps/web/.env`:
 
-## Database Setup
+   ```dotenv
+   NODE_ENV=development
+   BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
+   BETTER_AUTH_URL=http://localhost:3001
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tripshare
+   INDIAN_API_KEY=your-indianapi-key
+   ```
 
-This project uses PostgreSQL with Drizzle ORM.
+3. Set `EXPO_PUBLIC_SERVER_URL=http://YOUR-LAN-IP:3001` in `apps/native/.env` for a physical device. Android emulators commonly use `http://10.0.2.2:3001`.
+4. Install and migrate:
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/web/.env` file with your PostgreSQL connection details.
+   ```bash
+   pnpm install
+   pnpm --filter @TripShare/db db:migrate
+   ```
 
-3. Apply the schema to your database:
+5. Run `pnpm dev:web` and, separately, `pnpm dev:native`.
 
-```bash
-pnpm run db:push
-```
+The generated migration is in `packages/db/src/migrations`. `INDIAN_API_KEY` is server-only and is never exposed through a public environment variable or bundled into either client.
 
-Then, run the development server:
+## Accounting model
 
-```bash
-pnpm run dev
-```
+Fuel cost is `(distance km / mileage km/l) × petrol price`. Calculations use paise, round the total once, and distribute any remainder one paise at a time so participant shares always equal the saved total. Each journey copies the group mileage and current/manual petrol price into its own row. Later vehicle or fuel-price changes therefore cannot rewrite history.
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
-Use the Expo Go app to run the mobile application.
+Balances are `journey shares − recorded payments`. Overpayments are retained as credit (a negative balance), and partial payments reduce the balance immediately.
 
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
+## Verification
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+pnpm check-types
+pnpm exec biome check .
+pnpm --filter @TripShare/shared test
+pnpm --filter @TripShare/db db:generate
+pnpm --filter web build
+pnpm build
+pnpm --filter native check-types
 ```
 
-Import shared components like this:
-
-```tsx
-import { Button } from "@TripShare/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Environment Configuration
-
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `pnpm run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
-
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-## Git Hooks and Formatting
-
-- Run checks: `pnpm run check`
-
-## Project Structure
-
-```
-TripShare/
-├── apps/
-│   └── web/         # Fullstack application (Next.js)
-│   ├── native/      # Mobile application (React Native, Expo)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run dev:native`: Start the React Native/Expo development server
-- `pnpm run db:push`: Push schema changes to database
-- `pnpm run db:generate`: Generate database client/types
-- `pnpm run db:migrate`: Run database migrations
-- `pnpm run db:studio`: Open database studio UI
-- `pnpm run check`: Run Biome formatting and linting
-- `cd apps/web && pnpm run generate-pwa-assets`: Generate PWA assets
+Database deployment checks require a reachable `DATABASE_URL`; schema generation does not.
