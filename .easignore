@@ -50,9 +50,6 @@ coverage/
 *.tsbuildinfo
 *.log
 
-# The web app deploys separately and is not needed for native builds.
-apps/web/
-
 # Local database and deployment artifacts.
 local.db
 local.db-*
