@@ -12,6 +12,7 @@ export async function createContext(req: NextRequest): Promise<ApiContext> {
   return {
     db,
     auth: null,
+    indianApiKey: env.INDIAN_API_KEY || undefined,
     session,
   };
 }
