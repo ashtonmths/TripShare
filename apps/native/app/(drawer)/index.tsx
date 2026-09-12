@@ -1,95 +1,116 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { Card, Chip, useThemeColor } from "heroui-native";
-import { Text, View, Pressable } from "react-native";
-
+import { formatRupees } from "@TripShare/shared";
+import { router } from "expo-router";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { SignUp } from "@/components/sign-up";
 import { authClient } from "@/lib/auth-client";
-import { queryClient, trpc } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 
 export default function Home() {
-  const healthCheck = useQuery(trpc.healthCheck.queryOptions());
-  const privateData = useQuery(trpc.privateData.queryOptions());
-  const isConnected = healthCheck?.data === "OK";
-  const isLoading = healthCheck?.isLoading;
-  const { data: session } = authClient.useSession();
-
-  const mutedColor = useThemeColor("muted");
-  const successColor = useThemeColor("success");
-  const dangerColor = useThemeColor("danger");
-  const foregroundColor = useThemeColor("foreground");
-
-  return (
-    <Container className="p-6">
-      <View className="py-4 mb-6">
-        <Text className="text-4xl font-bold text-foreground mb-2">BETTER T STACK</Text>
-      </View>
-
-      {session?.user ? (
-        <Card variant="secondary" className="mb-6 p-4">
-          <Text className="text-foreground text-base mb-2">
-            Welcome, <Text className="font-medium">{session.user.name}</Text>
-          </Text>
-          <Text className="text-muted text-sm mb-4">{session.user.email}</Text>
-          <Pressable
-            className="bg-danger py-3 px-4 rounded-lg self-start active:opacity-70"
-            onPress={() => {
-              authClient.signOut();
-              queryClient.invalidateQueries();
-            }}
-          >
-            <Text className="text-foreground font-medium">Sign Out</Text>
-          </Pressable>
-        </Card>
-      ) : null}
-
-      <Card variant="secondary" className="p-6">
-        <View className="flex-row items-center justify-between mb-4">
-          <Card.Title>System Status</Card.Title>
-          <Chip variant="secondary" color={isConnected ? "success" : "danger"} size="sm">
-            <Chip.Label>{isConnected ? "LIVE" : "OFFLINE"}</Chip.Label>
-          </Chip>
-        </View>
-
-        <Card className="p-4">
-          <View className="flex-row items-center">
-            <View
-              className={`w-3 h-3 rounded-full mr-3 ${isConnected ? "bg-success" : "bg-muted"}`}
-            />
-            <View className="flex-1">
-              <Text className="text-foreground font-medium mb-1">TRPC Backend</Text>
-              <Card.Description>
-                {isLoading
-                  ? "Checking connection..."
-                  : isConnected
-                    ? "Connected to API"
-                    : "API Disconnected"}
-              </Card.Description>
-            </View>
-            {isLoading && <Ionicons name="hourglass-outline" size={20} color={mutedColor} />}
-            {!isLoading && isConnected && (
-              <Ionicons name="checkmark-circle" size={20} color={successColor} />
-            )}
-            {!isLoading && !isConnected && (
-              <Ionicons name="close-circle" size={20} color={dangerColor} />
-            )}
-          </View>
-        </Card>
-      </Card>
-
-      <Card variant="secondary" className="mt-6 p-4">
-        <Card.Title className="mb-3">Private Data</Card.Title>
-        {privateData && <Card.Description>{privateData.data?.message}</Card.Description>}
-      </Card>
-
-      {!session?.user && (
-        <>
-          <SignIn />
-          <SignUp />
-        </>
-      )}
-    </Container>
-  );
+	const { data: session } = authClient.useSession();
+	const dashboard = useQuery({
+		...trpc.dashboard.queryOptions(),
+		enabled: Boolean(session),
+	});
+	if (!session)
+		return (
+			<Container className="px-5 pt-8">
+				<View className="mb-7">
+					<Text className="text-sm font-bold uppercase tracking-widest text-success">
+						Private carpool ledger
+					</Text>
+					<Text className="mt-2 text-4xl font-bold text-foreground">
+						Welcome to TripShare
+					</Text>
+					<Text className="mt-3 text-base leading-6 text-muted">
+						Sign in as the vehicle owner. Your passengers never need accounts.
+					</Text>
+				</View>
+				<SignIn />
+				<SignUp />
+			</Container>
+		);
+	if (dashboard.isLoading)
+		return (
+			<Container isScrollable={false} className="items-center justify-center">
+				<ActivityIndicator />
+			</Container>
+		);
+	const due =
+		(dashboard.data?.totalOwedPaise ?? 0) -
+		(dashboard.data?.totalPaidPaise ?? 0);
+	return (
+		<Container className="px-5 pt-5">
+			<Text className="text-sm text-muted">Hello, {session.user.name}</Text>
+			<Text className="mt-1 text-3xl font-bold text-foreground">
+				Your ride ledger
+			</Text>
+			<View className="mt-6 rounded-3xl bg-success p-6">
+				<Text className="text-sm font-semibold text-white/80">
+					TOTAL OUTSTANDING
+				</Text>
+				<Text className="mt-2 text-4xl font-bold text-white">
+					{formatRupees(due)}
+				</Text>
+				<Text className="mt-2 text-white/80">
+					{dashboard.data?.journeyCount ?? 0} journeys ·{" "}
+					{dashboard.data?.groupCount ?? 0} groups
+				</Text>
+			</View>
+			<View className="mt-5 flex-row gap-3">
+				<Pressable
+					onPress={() => router.push("/(drawer)/(tabs)/two")}
+					className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-foreground p-4"
+				>
+					<Ionicons name="add" size={20} color="white" />
+					<Text className="font-bold text-background">Journey</Text>
+				</Pressable>
+				<Pressable
+					onPress={() => router.push("/(drawer)/(tabs)")}
+					className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border p-4"
+				>
+					<Ionicons name="people-outline" size={20} />
+					<Text className="font-bold text-foreground">Groups</Text>
+				</Pressable>
+			</View>
+			<Text className="mb-2 mt-8 text-lg font-bold text-foreground">
+				Recent journeys
+			</Text>
+			{!dashboard.data?.recentJourneys.length ? (
+				<View className="items-center rounded-2xl border border-dashed border-border p-8">
+					<Ionicons name="car-outline" size={30} />
+					<Text className="mt-3 text-muted">
+						Your journeys will appear here.
+					</Text>
+				</View>
+			) : (
+				dashboard.data.recentJourneys.map((item) => (
+					<View
+						key={item.id}
+						className="flex-row items-center border-b border-border py-4"
+					>
+						<View className="mr-3 h-11 w-11 items-center justify-center rounded-xl bg-default">
+							<Ionicons name="car-outline" size={20} />
+						</View>
+						<View className="flex-1">
+							<Text className="font-semibold text-foreground">
+								{item.direction === "two_way"
+									? "Return journey"
+									: "One-way journey"}
+							</Text>
+							<Text className="text-sm text-muted">
+								{item.journeyDate} · {item.distanceKm} km
+							</Text>
+						</View>
+						<Text className="font-bold text-foreground">
+							{formatRupees(item.fuelCostPaise)}
+						</Text>
+					</View>
+				))
+			)}
+		</Container>
+	);
 }
