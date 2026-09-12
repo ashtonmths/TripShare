@@ -1,5 +1,6 @@
 "use client";
-import { CarFront, Gauge, House } from "lucide-react";
+import { Gauge, House } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
@@ -10,7 +11,13 @@ export default function Header() {
 			<div className="nav-shell">
 				<Link className="brand" href="/">
 					<span className="brand-mark">
-						<CarFront size={19} />
+						<Image
+							src="/favicon/web-app-manifest-192x192.png"
+							alt=""
+							width={32}
+							height={32}
+							priority
+						/>
 					</span>
 					TripShare
 				</Link>
