@@ -1,6 +1,6 @@
+import { formatRupees } from "@TripShare/shared";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { formatRupees } from "@TripShare/shared";
 import { router } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Container } from "@/components/container";
@@ -19,13 +19,13 @@ export default function Home() {
 		return (
 			<Container className="px-5 pt-8">
 				<View className="mb-7">
-					<Text className="text-sm font-bold uppercase tracking-widest text-success">
+					<Text className="font-bold text-sm text-success uppercase tracking-widest">
 						Private carpool ledger
 					</Text>
-					<Text className="mt-2 text-4xl font-bold text-foreground">
+					<Text className="mt-2 font-bold text-4xl text-foreground">
 						Welcome to TripShare
 					</Text>
-					<Text className="mt-3 text-base leading-6 text-muted">
+					<Text className="mt-3 text-base text-muted leading-6">
 						Sign in as the vehicle owner. Your passengers never need accounts.
 					</Text>
 				</View>
@@ -44,15 +44,15 @@ export default function Home() {
 		(dashboard.data?.totalPaidPaise ?? 0);
 	return (
 		<Container className="px-5 pt-5">
-			<Text className="text-sm text-muted">Hello, {session.user.name}</Text>
-			<Text className="mt-1 text-3xl font-bold text-foreground">
+			<Text className="text-muted text-sm">Hello, {session.user.name}</Text>
+			<Text className="mt-1 font-bold text-3xl text-foreground">
 				Your ride ledger
 			</Text>
 			<View className="mt-6 rounded-3xl bg-success p-6">
-				<Text className="text-sm font-semibold text-white/80">
+				<Text className="font-semibold text-sm text-white/80">
 					TOTAL OUTSTANDING
 				</Text>
-				<Text className="mt-2 text-4xl font-bold text-white">
+				<Text className="mt-2 font-bold text-4xl text-white">
 					{formatRupees(due)}
 				</Text>
 				<Text className="mt-2 text-white/80">
@@ -76,11 +76,11 @@ export default function Home() {
 					<Text className="font-bold text-foreground">Groups</Text>
 				</Pressable>
 			</View>
-			<Text className="mb-2 mt-8 text-lg font-bold text-foreground">
+			<Text className="mt-8 mb-2 font-bold text-foreground text-lg">
 				Recent journeys
 			</Text>
 			{!dashboard.data?.recentJourneys.length ? (
-				<View className="items-center rounded-2xl border border-dashed border-border p-8">
+				<View className="items-center rounded-2xl border border-border border-dashed p-8">
 					<Ionicons name="car-outline" size={30} />
 					<Text className="mt-3 text-muted">
 						Your journeys will appear here.
@@ -90,7 +90,7 @@ export default function Home() {
 				dashboard.data.recentJourneys.map((item) => (
 					<View
 						key={item.id}
-						className="flex-row items-center border-b border-border py-4"
+						className="flex-row items-center border-border border-b py-4"
 					>
 						<View className="mr-3 h-11 w-11 items-center justify-center rounded-xl bg-default">
 							<Ionicons name="car-outline" size={20} />
@@ -101,7 +101,7 @@ export default function Home() {
 									? "Return journey"
 									: "One-way journey"}
 							</Text>
-							<Text className="text-sm text-muted">
+							<Text className="text-muted text-sm">
 								{item.journeyDate} · {item.distanceKm} km
 							</Text>
 						</View>

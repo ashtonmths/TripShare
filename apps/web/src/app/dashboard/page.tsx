@@ -5,18 +5,18 @@ import { auth } from "../../services";
 import Dashboard from "./dashboard";
 
 export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+	const session = await auth.api.getSession({
+		headers: await headers(),
+	});
 
-  if (!session?.user) {
-    redirect("/login");
-  }
+	if (!session?.user) {
+		redirect("/login");
+	}
 
-  return (
-    <div>
-      <h1>Dashboard</h1>
-      <Dashboard />
-    </div>
-  );
+	return (
+		<div>
+			<h1>Dashboard</h1>
+			<Dashboard />
+		</div>
+	);
 }

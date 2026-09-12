@@ -8,7 +8,7 @@ export default function Groups() {
 	const groups = useQuery(trpc.groups.list.queryOptions());
 	return (
 		<Container className="px-5 pt-5">
-			<Text className="text-3xl font-bold text-foreground">Your groups</Text>
+			<Text className="font-bold text-3xl text-foreground">Your groups</Text>
 			<Text className="mt-2 text-muted">
 				Vehicles, routes, and private contacts.
 			</Text>
@@ -16,7 +16,7 @@ export default function Groups() {
 				{groups.isLoading ? (
 					<Text className="text-muted">Loading groups…</Text>
 				) : !groups.data?.length ? (
-					<View className="items-center rounded-3xl border border-dashed border-border p-10">
+					<View className="items-center rounded-3xl border border-border border-dashed p-10">
 						<Ionicons name="people-outline" size={34} />
 						<Text className="mt-3 text-center text-muted">
 							Create your first group on the web, then it will sync here.
@@ -37,20 +37,20 @@ export default function Groups() {
 									/>
 								</View>
 								<View className="flex-1">
-									<Text className="text-lg font-bold text-foreground">
+									<Text className="font-bold text-foreground text-lg">
 										{g.name}
 									</Text>
 									<Text className="text-muted">{g.vehicleName}</Text>
 								</View>
 							</View>
 							<View className="mt-4 flex-row gap-6">
-								<Text className="text-sm text-muted">
+								<Text className="text-muted text-sm">
 									<Text className="font-bold text-foreground">
 										{g.normalOneWayKm}
 									</Text>{" "}
 									km one way
 								</Text>
-								<Text className="text-sm text-muted">
+								<Text className="text-muted text-sm">
 									<Text className="font-bold text-foreground">
 										{g.mileageKmpl}
 									</Text>{" "}

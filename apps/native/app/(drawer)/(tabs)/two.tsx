@@ -1,6 +1,6 @@
+import { calculateFuelCost, formatRupees } from "@TripShare/shared";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { calculateFuelCost, formatRupees } from "@TripShare/shared";
 import { useMemo, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { Container } from "@/components/container";
@@ -57,11 +57,11 @@ export default function AddJourney() {
 	};
 	return (
 		<Container className="px-5 pt-5">
-			<Text className="text-3xl font-bold text-foreground">Add journey</Text>
+			<Text className="font-bold text-3xl text-foreground">Add journey</Text>
 			<Text className="mt-2 text-muted">
 				A quick, exact split while the ride is fresh.
 			</Text>
-			<Text className="mb-2 mt-6 text-sm font-bold text-foreground">GROUP</Text>
+			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">GROUP</Text>
 			<View className="flex-row flex-wrap gap-2">
 				{groups.data?.map((g) => (
 					<Pressable
@@ -76,7 +76,7 @@ export default function AddJourney() {
 					</Pressable>
 				))}
 			</View>
-			<Text className="mb-2 mt-6 text-sm font-bold text-foreground">
+			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">
 				DIRECTION
 			</Text>
 			<View className="flex-row gap-2">
@@ -95,7 +95,7 @@ export default function AddJourney() {
 					</Pressable>
 				))}
 			</View>
-			<Text className="mb-2 mt-6 text-sm font-bold text-foreground">
+			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">
 				DISTANCE (KM)
 			</Text>
 			<TextInput
@@ -104,7 +104,7 @@ export default function AddJourney() {
 				keyboardType="decimal-pad"
 				className="rounded-xl border border-border px-4 py-4 text-foreground"
 			/>
-			<Text className="mb-2 mt-6 text-sm font-bold text-foreground">
+			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">
 				WHO JOINED?
 			</Text>
 			<View className="flex-row flex-wrap gap-2">
@@ -131,12 +131,12 @@ export default function AddJourney() {
 			</View>
 			<View className="mt-6 rounded-2xl border border-border p-4">
 				<View className="flex-row items-center">
-          <Ionicons name="flame-outline" size={22} />
+					<Ionicons name="flame-outline" size={22} />
 					<View className="ml-3 flex-1">
 						<Text className="font-bold text-foreground">
 							Udupi petrol price
 						</Text>
-						<Text className="text-sm text-muted">
+						<Text className="text-muted text-sm">
 							{price
 								? `${formatRupees(price)} / litre`
 								: "Fetch the current price"}
@@ -151,7 +151,7 @@ export default function AddJourney() {
 				</View>
 				{fuel.error && (
 					<>
-						<Text className="mt-3 text-sm text-danger">
+						<Text className="mt-3 text-danger text-sm">
 							{fuel.error.message}
 						</Text>
 						<TextInput
@@ -171,14 +171,14 @@ export default function AddJourney() {
 			{cost && (
 				<View className="mt-4 flex-row rounded-2xl bg-default p-5">
 					<View className="flex-1">
-						<Text className="text-sm text-muted">TOTAL</Text>
-						<Text className="text-2xl font-bold text-foreground">
+						<Text className="text-muted text-sm">TOTAL</Text>
+						<Text className="font-bold text-2xl text-foreground">
 							{formatRupees(cost.fuelCostPaise)}
 						</Text>
 					</View>
 					<View className="flex-1">
-						<Text className="text-sm text-muted">EACH</Text>
-						<Text className="text-2xl font-bold text-foreground">
+						<Text className="text-muted text-sm">EACH</Text>
+						<Text className="font-bold text-2xl text-foreground">
 							{formatRupees(cost.sharePaise)}
 						</Text>
 					</View>
@@ -199,9 +199,9 @@ export default function AddJourney() {
 						petrolPriceSource: fuel.data ? "indianapi" : "manual",
 					})
 				}
-				className="mb-8 mt-5 rounded-2xl bg-success p-5 disabled:opacity-40"
+				className="mt-5 mb-8 rounded-2xl bg-success p-5 disabled:opacity-40"
 			>
-				<Text className="text-center text-lg font-bold text-white">
+				<Text className="text-center font-bold text-lg text-white">
 					{save.isPending ? "Saving…" : "Save journey"}
 				</Text>
 			</Pressable>

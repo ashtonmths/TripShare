@@ -1,15 +1,21 @@
 {
-  "name": "@TripShare/shared",
-  "type": "module",
-  "exports": { ".": { "default": "./src/index.ts" } },
-  "scripts": {
-    "check-types": "tsc --noEmit",
-    "test": "node --import tsx --test src/*.test.ts"
-  },
-  "dependencies": { "zod": "catalog:" },
-  "devDependencies": {
-    "@TripShare/config": "workspace:*",
-    "tsx": "^4.20.6",
-    "typescript": "^6.0.3"
-  }
+	"name": "@TripShare/shared",
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit",
+		"test": "node --import tsx --test src/*.test.ts"
+	},
+	"dependencies": {
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@TripShare/config": "workspace:*",
+		"tsx": "^4.20.6",
+		"typescript": "^6.0.3"
+	}
 }
