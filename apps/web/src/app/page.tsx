@@ -1,47 +1,6 @@
-"use client";
-import { useQuery } from "@tanstack/react-query";
-
-import { trpc } from "@/utils/trpc";
-
-const TITLE_TEXT = `
- ██████╗ ███████╗████████╗████████╗███████╗██████╗
- ██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝██╔════╝██╔══██╗
- ██████╔╝█████╗     ██║      ██║   █████╗  ██████╔╝
- ██╔══██╗██╔══╝     ██║      ██║   ██╔══╝  ██╔══██╗
- ██████╔╝███████╗   ██║      ██║   ███████╗██║  ██║
- ╚═════╝ ╚══════╝   ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝
-
- ████████╗    ███████╗████████╗ █████╗  ██████╗██╗  ██╗
- ╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝
-    ██║       ███████╗   ██║   ███████║██║     █████╔╝
-    ██║       ╚════██║   ██║   ██╔══██║██║     ██╔═██╗
-    ██║       ███████║   ██║   ██║  ██║╚██████╗██║  ██╗
-    ╚═╝       ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
- `;
+import { ArrowRight, Fuel, ReceiptIndianRupee, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
-  const healthCheck = useQuery(trpc.healthCheck.queryOptions());
-
-  return (
-    <div className="container mx-auto max-w-3xl px-4 py-2">
-      <pre className="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
-      <div className="grid gap-6">
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">API Status</h2>
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-2 w-2 rounded-full ${healthCheck.data ? "bg-green-500" : "bg-red-500"}`}
-            />
-            <span className="text-sm text-muted-foreground">
-              {healthCheck.isLoading
-                ? "Checking..."
-                : healthCheck.data
-                  ? "Connected"
-                  : "Disconnected"}
-            </span>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
+  return <main className="landing"><section className="hero"><p className="eyebrow">Built for the people in your car</p><h1>Shared rides.<br />Fair fuel splits.</h1><p>TripShare keeps a private record of every journey, live Udupi petrol prices, and what each person still owes.</p><div className="hero-actions"><Link className="primary-button" href="/dashboard">Open your ledger <ArrowRight size={17} /></Link><Link href="/login">Create an account</Link></div></section><section className="feature-strip"><article><Fuel /><h2>Price at the pump</h2><p>Capture the current Udupi petrol price or enter it manually when the service is unavailable.</p></article><article><ReceiptIndianRupee /><h2>Exact, lasting splits</h2><p>Every ride stores its price and per-person share, so history never shifts underneath you.</p></article><article><ShieldCheck /><h2>Private by design</h2><p>Your passengers are contacts, not users. Only you sign in and manage the ledger.</p></article></section></main>;
 }

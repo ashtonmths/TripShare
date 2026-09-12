@@ -13,6 +13,7 @@
     "@TripShare/api": "workspace:*",
     "@TripShare/auth": "workspace:*",
     "@TripShare/db": "workspace:*",
+    "@TripShare/shared": "workspace:*",
     "@TripShare/ui": "workspace:*",
     "@swc/helpers": "^0.5.23",
     "@tanstack/react-form": "catalog:",

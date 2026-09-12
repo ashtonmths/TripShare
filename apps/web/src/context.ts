@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { getDb } from "./services";
 import { auth } from "./services";
+import { env } from "./env.server";
 
 export async function createContext(req: NextRequest): Promise<ApiContext> {
   const db = await getDb();

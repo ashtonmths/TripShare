@@ -241,6 +241,9 @@ importers:
       '@TripShare/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@TripShare/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@TripShare/ui':
         specifier: workspace:*
         version: link:../../packages/ui
