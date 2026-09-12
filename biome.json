@@ -27,6 +27,11 @@
 			"!**/wrangler.jsonc",
 			"!**/.source",
 			"!**/convex/_generated",
+			"!apps/native/dist-native-check",
+			"!apps/native/src/env.ts",
+			"!apps/web/src/env.ts",
+			"!packages/db/src/env.ts",
+			"!apps/native/uniwind-types.d.ts",
 			"!apps/web/public/favicon/favicon.svg",
 			"!packages/ui/src/components/input-group.tsx",
 			"!packages/ui/src/components/label.tsx"

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Text, View } from "react-native";
 import { Container } from "@/components/container";
+import { hardShadow } from "@/lib/neobrutalism";
 import { trpc } from "@/utils/trpc";
 
 export default function Groups() {
@@ -16,7 +17,7 @@ export default function Groups() {
 				{groups.isLoading ? (
 					<Text className="text-muted">Loading groups…</Text>
 				) : !groups.data?.length ? (
-					<View className="items-center rounded-3xl border border-border border-dashed p-10">
+					<View className="items-center border-2 border-foreground border-dashed p-10">
 						<Ionicons name="people-outline" size={34} />
 						<Text className="mt-3 text-center text-muted">
 							Create your first group on the web, then it will sync here.
@@ -26,10 +27,11 @@ export default function Groups() {
 					groups.data.map((g) => (
 						<View
 							key={g.id}
-							className="rounded-2xl border border-border bg-background p-5"
+							className="border-2 border-foreground bg-background p-5"
+							style={hardShadow}
 						>
 							<View className="flex-row items-center">
-								<View className="mr-3 h-11 w-11 items-center justify-center rounded-xl bg-success/15">
+								<View className="mr-3 h-11 w-11 items-center justify-center border-2 border-foreground bg-[#ff9fb2]">
 									<Ionicons
 										name="car-sport-outline"
 										size={22}

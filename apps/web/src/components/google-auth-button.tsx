@@ -24,7 +24,9 @@ export function GoogleAuthButton() {
 				}
 			}}
 		>
-			<span className="google-mark" aria-hidden="true">G</span>
+			<span className="google-mark" aria-hidden="true">
+				G
+			</span>
 			{pending ? "Opening Google…" : "Continue with Google"}
 		</button>
 	);

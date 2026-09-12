@@ -14,6 +14,7 @@ import { Text, type TextInput, View } from "react-native";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient } from "@/utils/trpc";
 
 const signInSchema = z.object({
@@ -94,8 +95,12 @@ function SignIn() {
 	});
 
 	return (
-		<Surface variant="secondary" className="rounded-lg p-4">
-			<Text className="mb-4 font-medium text-foreground">Sign In</Text>
+		<Surface
+			variant="secondary"
+			className="border-2 border-foreground bg-[#8dc8ff] p-4"
+			style={hardShadow}
+		>
+			<Text className="mb-4 font-black text-foreground text-xl">Sign in</Text>
 
 			<form.Subscribe
 				selector={(state) => ({

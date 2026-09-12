@@ -7,9 +7,8 @@ import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
-
-import Loader from "./loader";
 import { GoogleAuthButton } from "./google-auth-button";
+import Loader from "./loader";
 
 export default function SignInForm({
 	onSwitchToSignUp,
@@ -57,9 +56,13 @@ export default function SignInForm({
 		<div className="auth-card">
 			<p className="auth-kicker">Owner access</p>
 			<h1>Welcome back</h1>
-			<p className="auth-intro">Sign in to manage your private carpool ledger.</p>
+			<p className="auth-intro">
+				Sign in to manage your private carpool ledger.
+			</p>
 			<GoogleAuthButton />
-			<div className="auth-divider"><span>or use email</span></div>
+			<div className="auth-divider">
+				<span>or use email</span>
+			</div>
 
 			<form
 				onSubmit={(e) => {
@@ -134,11 +137,7 @@ export default function SignInForm({
 			</form>
 
 			<div className="auth-switch">
-				<Button
-					variant="link"
-					onClick={onSwitchToSignUp}
-					className="auth-link"
-				>
+				<Button variant="link" onClick={onSwitchToSignUp} className="auth-link">
 					Need an account? Create one
 				</Button>
 			</div>

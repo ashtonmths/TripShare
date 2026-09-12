@@ -7,6 +7,7 @@ import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { SignUp } from "@/components/sign-up";
 import { authClient } from "@/lib/auth-client";
+import { hardShadow } from "@/lib/neobrutalism";
 import { trpc } from "@/utils/trpc";
 
 export default function Home() {
@@ -19,7 +20,7 @@ export default function Home() {
 		return (
 			<Container className="px-5 pt-8">
 				<View className="mb-7">
-					<Text className="font-bold text-sm text-success uppercase tracking-widest">
+					<Text className="font-black text-foreground text-sm">
 						Private carpool ledger
 					</Text>
 					<Text className="mt-2 font-bold text-4xl text-foreground">
@@ -48,14 +49,15 @@ export default function Home() {
 			<Text className="mt-1 font-bold text-3xl text-foreground">
 				Your ride ledger
 			</Text>
-			<View className="mt-6 rounded-3xl bg-success p-6">
-				<Text className="font-semibold text-sm text-white/80">
-					TOTAL OUTSTANDING
-				</Text>
-				<Text className="mt-2 font-bold text-4xl text-white">
+			<View
+				className="mt-6 border-2 border-foreground bg-[#c8f55a] p-6"
+				style={hardShadow}
+			>
+				<Text className="font-black text-black text-sm">Total outstanding</Text>
+				<Text className="mt-2 font-black text-4xl text-black">
 					{formatRupees(due)}
 				</Text>
-				<Text className="mt-2 text-white/80">
+				<Text className="mt-2 text-black">
 					{dashboard.data?.journeyCount ?? 0} journeys ·{" "}
 					{dashboard.data?.groupCount ?? 0} groups
 				</Text>
@@ -63,24 +65,26 @@ export default function Home() {
 			<View className="mt-5 flex-row gap-3">
 				<Pressable
 					onPress={() => router.push("/(drawer)/(tabs)/two")}
-					className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-foreground p-4"
+					className="flex-1 flex-row items-center justify-center gap-2 border-2 border-foreground bg-[#ff9fb2] p-4"
+					style={hardShadow}
 				>
 					<Ionicons name="add" size={20} color="white" />
-					<Text className="font-bold text-background">Journey</Text>
+					<Text className="font-black text-black">Journey</Text>
 				</Pressable>
 				<Pressable
 					onPress={() => router.push("/(drawer)/(tabs)")}
-					className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border p-4"
+					className="flex-1 flex-row items-center justify-center gap-2 border-2 border-foreground bg-[#8dc8ff] p-4"
+					style={hardShadow}
 				>
 					<Ionicons name="people-outline" size={20} />
-					<Text className="font-bold text-foreground">Groups</Text>
+					<Text className="font-black text-black">Groups</Text>
 				</Pressable>
 			</View>
 			<Text className="mt-8 mb-2 font-bold text-foreground text-lg">
 				Recent journeys
 			</Text>
 			{!dashboard.data?.recentJourneys.length ? (
-				<View className="items-center rounded-2xl border border-border border-dashed p-8">
+				<View className="items-center border-2 border-foreground border-dashed p-8">
 					<Ionicons name="car-outline" size={30} />
 					<Text className="mt-3 text-muted">
 						Your journeys will appear here.
@@ -92,7 +96,7 @@ export default function Home() {
 						key={item.id}
 						className="flex-row items-center border-border border-b py-4"
 					>
-						<View className="mr-3 h-11 w-11 items-center justify-center rounded-xl bg-default">
+						<View className="mr-3 h-11 w-11 items-center justify-center border-2 border-foreground bg-[#8dc8ff]">
 							<Ionicons name="car-outline" size={20} />
 						</View>
 						<View className="flex-1">

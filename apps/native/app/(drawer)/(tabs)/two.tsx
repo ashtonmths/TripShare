@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { Container } from "@/components/container";
+import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
 
 export default function AddJourney() {
@@ -61,7 +62,9 @@ export default function AddJourney() {
 			<Text className="mt-2 text-muted">
 				A quick, exact split while the ride is fresh.
 			</Text>
-			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">GROUP</Text>
+			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
+				Group
+			</Text>
 			<View className="flex-row flex-wrap gap-2">
 				{groups.data?.map((g) => (
 					<Pressable
@@ -70,14 +73,14 @@ export default function AddJourney() {
 							setGroupId(g.id);
 							setPeople([]);
 						}}
-						className={`rounded-full border px-4 py-3 ${currentId === g.id ? "border-success bg-success/15" : "border-border"}`}
+						className={`border-2 border-foreground px-4 py-3 ${currentId === g.id ? "bg-[#c8f55a]" : "bg-background"}`}
 					>
 						<Text className="font-semibold text-foreground">{g.name}</Text>
 					</Pressable>
 				))}
 			</View>
-			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">
-				DIRECTION
+			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
+				Direction
 			</Text>
 			<View className="flex-row gap-2">
 				{[false, true].map((value) => (
@@ -87,7 +90,7 @@ export default function AddJourney() {
 							setTwoWay(value);
 							setDistance("");
 						}}
-						className={`flex-1 rounded-xl border p-4 ${twoWay === value ? "border-success bg-success/15" : "border-border"}`}
+						className={`flex-1 border-2 border-foreground p-4 ${twoWay === value ? "bg-[#8dc8ff]" : "bg-background"}`}
 					>
 						<Text className="text-center font-semibold text-foreground">
 							{value ? "Two way" : "One way"}
@@ -95,17 +98,17 @@ export default function AddJourney() {
 					</Pressable>
 				))}
 			</View>
-			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">
-				DISTANCE (KM)
+			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
+				Distance (km)
 			</Text>
 			<TextInput
 				value={distance || String(km || "")}
 				onChangeText={setDistance}
 				keyboardType="decimal-pad"
-				className="rounded-xl border border-border px-4 py-4 text-foreground"
+				className="border-2 border-foreground bg-background px-4 py-4 text-foreground"
 			/>
-			<Text className="mt-6 mb-2 font-bold text-foreground text-sm">
-				WHO JOINED?
+			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
+				Who joined?
 			</Text>
 			<View className="flex-row flex-wrap gap-2">
 				{detail.data?.people
@@ -120,7 +123,7 @@ export default function AddJourney() {
 										: [...old, p.id],
 								)
 							}
-							className={`flex-row items-center rounded-full border px-4 py-3 ${people.includes(p.id) ? "border-success bg-success/15" : "border-border"}`}
+							className={`flex-row items-center border-2 border-foreground px-4 py-3 ${people.includes(p.id) ? "bg-[#c8f55a]" : "bg-background"}`}
 						>
 							{people.includes(p.id) && (
 								<Ionicons name="checkmark" size={16} color="#176b52" />
@@ -129,7 +132,10 @@ export default function AddJourney() {
 						</Pressable>
 					))}
 			</View>
-			<View className="mt-6 rounded-2xl border border-border p-4">
+			<View
+				className="mt-6 border-2 border-foreground bg-[#8dc8ff] p-4"
+				style={hardShadow}
+			>
 				<View className="flex-row items-center">
 					<Ionicons name="flame-outline" size={22} />
 					<View className="ml-3 flex-1">
@@ -144,9 +150,9 @@ export default function AddJourney() {
 					</View>
 					<Pressable
 						onPress={fetchPrice}
-						className="rounded-xl bg-foreground px-3 py-2"
+						className="border-2 border-black bg-[#c8f55a] px-3 py-2"
 					>
-						<Text className="font-bold text-background">Fetch</Text>
+						<Text className="font-black text-black">Fetch</Text>
 					</Pressable>
 				</View>
 				{fuel.error && (
@@ -163,13 +169,16 @@ export default function AddJourney() {
 								setPrice(Math.round(Number(v) * 100));
 							}}
 							keyboardType="decimal-pad"
-							className="mt-3 rounded-xl border border-border px-4 py-3 text-foreground"
+							className="mt-3 border-2 border-black bg-white px-4 py-3 text-black"
 						/>
 					</>
 				)}
 			</View>
 			{cost && (
-				<View className="mt-4 flex-row rounded-2xl bg-default p-5">
+				<View
+					className="mt-4 flex-row border-2 border-foreground bg-[#ff9fb2] p-5"
+					style={hardShadow}
+				>
 					<View className="flex-1">
 						<Text className="text-muted text-sm">TOTAL</Text>
 						<Text className="font-bold text-2xl text-foreground">
@@ -199,9 +208,10 @@ export default function AddJourney() {
 						petrolPriceSource: fuel.data ? "indianapi" : "manual",
 					})
 				}
-				className="mt-5 mb-8 rounded-2xl bg-success p-5 disabled:opacity-40"
+				className="mt-5 mb-8 border-2 border-foreground bg-[#c8f55a] p-5 disabled:opacity-40"
+				style={hardShadow}
 			>
-				<Text className="text-center font-bold text-lg text-white">
+				<Text className="text-center font-black text-black text-lg">
 					{save.isPending ? "Saving…" : "Save journey"}
 				</Text>
 			</Pressable>

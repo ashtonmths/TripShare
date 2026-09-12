@@ -14,6 +14,7 @@ import { Text, type TextInput, View } from "react-native";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient } from "@/utils/trpc";
 
 const signUpSchema = z.object({
@@ -102,8 +103,14 @@ export function SignUp() {
 	});
 
 	return (
-		<Surface variant="secondary" className="rounded-lg p-4">
-			<Text className="mb-4 font-medium text-foreground">Create Account</Text>
+		<Surface
+			variant="secondary"
+			className="mt-5 border-2 border-foreground bg-[#ff9fb2] p-4"
+			style={hardShadow}
+		>
+			<Text className="mb-4 font-black text-foreground text-xl">
+				Create account
+			</Text>
 
 			<form.Subscribe
 				selector={(state) => ({
