@@ -27,6 +27,8 @@ Requirements: Node.js, pnpm 11, and PostgreSQL.
    BETTER_AUTH_URL=http://localhost:3001
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tripshare
    INDIAN_API_KEY=your-indianapi-key
+   GOOGLE_CLIENT_ID=your-google-web-client-id
+   GOOGLE_CLIENT_SECRET=your-google-web-client-secret
    ```
 
 3. Set `EXPO_PUBLIC_SERVER_URL=http://YOUR-LAN-IP:3001` in `apps/native/.env` for a physical device. Android emulators commonly use `http://10.0.2.2:3001`.
@@ -40,6 +42,30 @@ Requirements: Node.js, pnpm 11, and PostgreSQL.
 5. Run `pnpm dev:web` and, separately, `pnpm dev:native`.
 
 The generated migration is in `packages/db/src/migrations`. `INDIAN_API_KEY` is server-only and is never exposed through a public environment variable or bundled into either client.
+
+For Google OAuth, create a Web application credential in Google Cloud and register these authorized redirect URIs:
+
+```text
+http://localhost:3001/api/auth/callback/google
+https://tripshare.ashtonmths.dev/api/auth/callback/google
+```
+
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the Vercel Production environment, then redeploy. The Google button is available on both sign-in and account creation screens.
+
+The Expo project uses EAS Build and EAS Update with `development`, `preview`, and `production` channels. The production EAS environment must contain:
+
+```text
+EXPO_PUBLIC_SERVER_URL=https://tripshare.ashtonmths.dev
+```
+
+Publish compatible JavaScript and asset changes with:
+
+```bash
+cd apps/native
+pnpm dlx eas-cli@latest update --channel production --environment production --message "Describe the update"
+```
+
+Native dependency or Expo SDK changes require a new store build rather than an OTA update.
 
 ## Accounting model
 
