@@ -9,6 +9,7 @@ import z from "zod";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
+import { GoogleAuthButton } from "./google-auth-button";
 
 export default function SignInForm({
 	onSwitchToSignUp,
@@ -53,8 +54,12 @@ export default function SignInForm({
 	}
 
 	return (
-		<div className="mx-auto mt-10 w-full max-w-md p-6">
-			<h1 className="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
+		<div className="auth-card">
+			<p className="auth-kicker">Owner access</p>
+			<h1>Welcome back</h1>
+			<p className="auth-intro">Sign in to manage your private carpool ledger.</p>
+			<GoogleAuthButton />
+			<div className="auth-divider"><span>or use email</span></div>
 
 			<form
 				onSubmit={(e) => {
@@ -62,7 +67,7 @@ export default function SignInForm({
 					e.stopPropagation();
 					form.handleSubmit();
 				}}
-				className="space-y-4"
+				className="auth-form"
 			>
 				<div>
 					<form.Field name="email">
@@ -128,13 +133,13 @@ export default function SignInForm({
 				</form.Subscribe>
 			</form>
 
-			<div className="mt-4 text-center">
+			<div className="auth-switch">
 				<Button
 					variant="link"
 					onClick={onSwitchToSignUp}
-					className="text-indigo-600 hover:text-indigo-800"
+					className="auth-link"
 				>
-					Need an account? Sign Up
+					Need an account? Create one
 				</Button>
 			</div>
 		</div>
