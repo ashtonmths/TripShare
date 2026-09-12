@@ -1,0 +1,64 @@
+# Dependencies are installed by EAS from the lockfile.
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Source control, editor files, and local metadata.
+.git/
+.github/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Local environment and credentials.
+.env
+.env.*
+!.env.schema
+**/.env
+**/.env.*
+!**/.env.schema
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# Build output and caches.
+.turbo/
+**/.turbo/
+.expo/
+**/.expo/
+.next/
+**/.next/
+dist/
+**/dist/
+dist-native-check/
+**/dist-native-check/
+build/
+**/build/
+web-build/
+**/web-build/
+coverage/
+**/coverage/
+.cache/
+**/.cache/
+*.tsbuildinfo
+*.log
+
+# The web app deploys separately and is not needed for native builds.
+apps/web/
+
+# Local database and deployment artifacts.
+local.db
+local.db-*
+.vercel/
+.alchemy/
+.nx/
+tmp/
+temp/
+*.tgz
