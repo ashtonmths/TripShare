@@ -173,16 +173,19 @@ a:active {
 	gap: 18px;
 }
 .feature-strip article {
+	--feature-copy: var(--muted-ink);
 	border: var(--hard-border);
 	padding: 24px;
 	background: var(--background);
 	box-shadow: 5px 5px 0 var(--ink);
 }
 .feature-strip article:nth-child(2) {
+	--feature-copy: #30302c;
 	background: var(--blue);
 	color: #171717;
 }
 .feature-strip article:nth-child(3) {
+	--feature-copy: #30302c;
 	background: var(--pink);
 	color: #171717;
 }
@@ -196,6 +199,9 @@ a:active {
 	color: var(--muted-ink);
 	font-size: 14px;
 	line-height: 1.55;
+}
+.feature-strip p {
+	color: var(--feature-copy);
 }
 
 .app-shell {
