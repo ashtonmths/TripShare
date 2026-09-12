@@ -1,0 +1,3 @@
+{
+  "extends": "@TripShare/config/tsconfig.base.json"
+}
