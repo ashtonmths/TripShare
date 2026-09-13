@@ -1,6 +1,3 @@
-const {
-	withVarlockMetroConfig,
-} = require("@varlock/expo-integration/metro-config");
 const { getDefaultConfig } = require("expo/metro-config");
 const { withUniwindConfig } = require("uniwind/metro");
 const {
@@ -15,4 +12,4 @@ const uniwindConfig = withUniwindConfig(wrapWithReanimatedMetroConfig(config), {
 	dtsFile: "./uniwind-types.d.ts",
 });
 
-module.exports = withVarlockMetroConfig(uniwindConfig);
+module.exports = uniwindConfig;
