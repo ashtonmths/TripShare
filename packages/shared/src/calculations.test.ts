@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { calculateBalances, calculateFuelCost } from "./index";
+import { calculateBalances, calculateFuelCost, isoDateSchema } from "./index";
 
 test("calculates and splits fuel cost in paise", () => {
 	assert.deepEqual(
@@ -30,4 +30,11 @@ test("calculates balances after partial payments", () => {
 			},
 		],
 	);
+});
+
+test("accepts real ISO calendar dates and rejects normalized dates", () => {
+	assert.equal(isoDateSchema.safeParse("2026-02-28").success, true);
+	assert.equal(isoDateSchema.safeParse("2026-02-31").success, false);
+	assert.equal(isoDateSchema.safeParse("1999-12-31").success, false);
+	assert.equal(isoDateSchema.safeParse("2101-01-01").success, false);
 });

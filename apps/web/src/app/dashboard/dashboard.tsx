@@ -315,6 +315,7 @@ function Panel({
 	});
 	const [people, setPeople] = useState<string[]>([]);
 	const [price, setPrice] = useState<number>();
+	const [fuelQuoteToken, setFuelQuoteToken] = useState<string>();
 	const [source, setSource] = useState<"indianapi" | "manual">("indianapi");
 	const set = (key: string, value: string) =>
 		setForm((old) => ({ ...old, [key]: value }));
@@ -380,12 +381,14 @@ function Panel({
 				participantIds: people,
 				petrolPricePaise: price,
 				petrolPriceSource: source,
+				fuelQuoteToken,
 			});
 	};
 	const getFuel = async () => {
 		const result = await fuel.refetch();
 		if (result.data) {
 			setPrice(result.data.pricePaise);
+			setFuelQuoteToken(result.data.quoteToken);
 			setSource("indianapi");
 			toast.success("Udupi petrol price loaded");
 		}
@@ -633,6 +636,7 @@ function Panel({
 												step="0.01"
 												onChange={(e) => {
 													setPrice(Math.round(Number(e.target.value) * 100));
+													setFuelQuoteToken(undefined);
 													setSource("manual");
 												}}
 											/>

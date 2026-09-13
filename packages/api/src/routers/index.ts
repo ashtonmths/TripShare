@@ -13,14 +13,78 @@ import {
 	isoDateSchema,
 	paymentMethodSchema,
 } from "@TripShare/shared";
+import { timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
 
-const id = z.string().min(1);
-const positive = z.number().positive();
+const id = z.string().uuid();
+const positive = z.number().finite().positive();
+const MAX_PETROL_PRICE_PAISE = 50_000;
+const MAX_PAYMENT_PAISE = 100_000_000;
+const MAX_PARTICIPANTS = 100;
+
+function encodeBase64Url(value: string | ArrayBuffer) {
+	const bytes =
+		typeof value === "string"
+			? new TextEncoder().encode(value)
+			: new Uint8Array(value);
+	return Buffer.from(bytes).toString("base64url");
+}
+
+async function signFuelQuote(secret: string, payload: string) {
+	const key = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	return encodeBase64Url(
+		await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)),
+	);
+}
+
+async function createFuelQuote(
+	secret: string,
+	userId: string,
+	pricePaise: number,
+) {
+	const payload = encodeBase64Url(
+		JSON.stringify({ userId, pricePaise, expiresAt: Date.now() + 10 * 60_000 }),
+	);
+	return `${payload}.${await signFuelQuote(secret, payload)}`;
+}
+
+async function verifyFuelQuote(
+	secret: string,
+	token: string,
+	userId: string,
+	pricePaise: number,
+) {
+	const [payload, signature, extra] = token.split(".");
+	if (!payload || !signature || extra) return false;
+	const expected = await signFuelQuote(secret, payload);
+	if (signature.length !== expected.length) return false;
+	const left = Buffer.from(signature);
+	const right = Buffer.from(expected);
+	if (!timingSafeEqual(left, right)) return false;
+	try {
+		const value = JSON.parse(
+			Buffer.from(payload, "base64url").toString("utf8"),
+		);
+		return (
+			value.userId === userId &&
+			value.pricePaise === pricePaise &&
+			typeof value.expiresAt === "number" &&
+			value.expiresAt >= Date.now()
+		);
+	} catch {
+		return false;
+	}
+}
 
 async function ownedGroup(
 	ctx: { db: Database; session: { user: { id: string } } },
@@ -125,7 +189,13 @@ export const groupRouter = router({
 							name: person.name,
 						})
 						.from(journeyParticipant)
-						.innerJoin(person, eq(person.id, journeyParticipant.personId))
+						.innerJoin(
+							person,
+							and(
+								eq(person.id, journeyParticipant.personId),
+								eq(person.groupId, record.id),
+							),
+						)
 						.where(inArray(journeyParticipant.journeyId, journeyIds))
 				: [];
 			return {
@@ -211,6 +281,11 @@ export const fuelRouter = router({
 				location: "Udupi, Karnataka" as const,
 				source: "indianapi" as const,
 				fetchedAt: new Date().toISOString(),
+				quoteToken: await createFuelQuote(
+					ctx.fuelQuoteSecret,
+					ctx.session.user.id,
+					Math.round(priceRupees * 100),
+				),
 			};
 		} catch (error) {
 			throw new TRPCError({
@@ -229,13 +304,32 @@ export const journeyRouter = router({
 				journeyDate: isoDateSchema,
 				direction: directionSchema,
 				distanceKm: positive.max(4000),
-				participantIds: z.array(id).min(1),
-				petrolPricePaise: z.number().int().positive(),
+				participantIds: z.array(id).min(1).max(MAX_PARTICIPANTS),
+				petrolPricePaise: z
+					.number()
+					.int()
+					.positive()
+					.max(MAX_PETROL_PRICE_PAISE),
 				petrolPriceSource: z.enum(["indianapi", "manual"]),
+				fuelQuoteToken: z.string().max(1024).optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const record = await ownedGroup(ctx, input.groupId);
+			if (
+				input.petrolPriceSource === "indianapi" &&
+				(!input.fuelQuoteToken ||
+					!(await verifyFuelQuote(
+						ctx.fuelQuoteSecret,
+						input.fuelQuoteToken,
+						ctx.session.user.id,
+						input.petrolPricePaise,
+					)))
+			)
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Fuel quote is invalid or expired. Fetch the price again.",
+				});
 			if (input.journeyDate < record.startDate)
 				throw new TRPCError({
 					code: "BAD_REQUEST",
@@ -246,7 +340,11 @@ export const journeyRouter = router({
 				.select({ id: person.id })
 				.from(person)
 				.where(
-					and(eq(person.groupId, input.groupId), inArray(person.id, uniqueIds)),
+					and(
+						eq(person.groupId, input.groupId),
+						eq(person.isActive, 1),
+						inArray(person.id, uniqueIds),
+					),
 				);
 			if (validPeople.length !== uniqueIds.length)
 				throw new TRPCError({
@@ -297,7 +395,7 @@ export const paymentRouter = router({
 			z.object({
 				groupId: id,
 				personId: id,
-				amountPaise: z.number().int().positive(),
+				amountPaise: z.number().int().positive().max(MAX_PAYMENT_PAISE),
 				method: paymentMethodSchema,
 				paidOn: isoDateSchema,
 				note: z.string().trim().max(200).optional(),

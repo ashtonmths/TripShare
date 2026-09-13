@@ -21,6 +21,7 @@ export default function AddJourney() {
 		retry: false,
 	});
 	const [price, setPrice] = useState<number>();
+	const [fuelQuoteToken, setFuelQuoteToken] = useState<string>();
 	const [manual, setManual] = useState("");
 	const [people, setPeople] = useState<string[]>([]);
 	const [twoWay, setTwoWay] = useState(false);
@@ -54,7 +55,10 @@ export default function AddJourney() {
 	);
 	const fetchPrice = async () => {
 		const result = await fuel.refetch();
-		if (result.data) setPrice(result.data.pricePaise);
+		if (result.data) {
+			setPrice(result.data.pricePaise);
+			setFuelQuoteToken(result.data.quoteToken);
+		}
 	};
 	return (
 		<Container className="px-5 pt-5">
@@ -167,6 +171,7 @@ export default function AddJourney() {
 							onChangeText={(v) => {
 								setManual(v);
 								setPrice(Math.round(Number(v) * 100));
+								setFuelQuoteToken(undefined);
 							}}
 							keyboardType="decimal-pad"
 							className="mt-3 border-2 border-black bg-white px-4 py-3 text-black"
@@ -205,7 +210,8 @@ export default function AddJourney() {
 						distanceKm: km,
 						participantIds: people,
 						petrolPricePaise: price,
-						petrolPriceSource: fuel.data ? "indianapi" : "manual",
+						petrolPriceSource: fuelQuoteToken ? "indianapi" : "manual",
+						fuelQuoteToken,
 					})
 				}
 				className="mt-5 mb-8 border-2 border-foreground bg-[#c8f55a] p-5 disabled:opacity-40"
