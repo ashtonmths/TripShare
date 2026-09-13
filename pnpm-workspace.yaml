@@ -6,9 +6,6 @@ allowBuilds:
   sharp: true
 overrides:
   "@next/env": npm:@varlock/nextjs-integration@1.2.2
-  "decode-uri-component@<=0.4.2": 0.5.0
-  "esbuild@<=0.24.2": 0.25.0
-  "uuid@<11.1.1": 11.1.1
 catalog:
   zod: ^4.5.4
   "@types/node": ^26.4.1
