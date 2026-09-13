@@ -3,12 +3,12 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
-import { queryClient, trpc } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 
 export function Home({ inTabs = false }: { inTabs?: boolean }) {
 	const { data: session, isPending } = authClient.useSession();
@@ -65,14 +65,20 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 					</Text>
 				</View>
 				<Pressable
-					accessibilityLabel="Sign out"
-					onPress={async () => {
-						await authClient.signOut();
-						queryClient.clear();
-					}}
-					className="h-11 w-11 items-center justify-center border-2 border-foreground bg-background"
+					accessibilityLabel="Open profile"
+					onPress={() => router.push("/(drawer)/(tabs)/three")}
+					className="h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-background"
 				>
-					<Ionicons name="log-out-outline" size={21} />
+					{session.user.image ? (
+						<Image
+							source={{ uri: session.user.image }}
+							className="h-full w-full"
+						/>
+					) : (
+						<Text className="font-black text-foreground">
+							{session.user.name.slice(0, 1).toUpperCase()}
+						</Text>
+					)}
 				</Pressable>
 			</View>
 			{dashboard.error && (
@@ -87,19 +93,65 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 					</Pressable>
 				</View>
 			)}
-			<View
-				className="mt-6 border-2 border-foreground bg-[#c8f55a] p-5"
-				style={hardShadow}
-			>
-				<Text className="font-black text-black text-sm">OUTSTANDING</Text>
-				<Text className="mt-1 font-black text-4xl text-black">
-					{formatRupees(due)}
-				</Text>
-				<Text className="mt-2 text-black">
-					{dashboard.data?.journeyCount ?? 0} rides ·{" "}
-					{dashboard.data?.groupCount ?? 0} owned trips
-				</Text>
-			</View>
+			{(dashboard.data?.groupCount ?? 0) > 0 && (
+				<View
+					className="mt-6 border-2 border-foreground bg-[#c8f55a] p-5"
+					style={hardShadow}
+				>
+					<Text className="font-black text-black text-sm">OUTSTANDING</Text>
+					<Text className="mt-1 font-black text-4xl text-black">
+						{formatRupees(due)}
+					</Text>
+					<Text className="mt-2 text-black">
+						{dashboard.data?.journeyCount ?? 0} rides ·{" "}
+						{dashboard.data?.groupCount ?? 0} owned trips
+					</Text>
+				</View>
+			)}
+			<Text className="mt-7 mb-3 font-black text-foreground text-xl">
+				Payments
+			</Text>
+			{shared.data?.map((item) => {
+				const remaining = Number(item.owedPaise) - Number(item.paidPaise);
+				return (
+					<Pressable
+						key={item.groupId}
+						onPress={() => router.push("/(drawer)/(tabs)")}
+						className="mb-3 border-2 border-foreground bg-background p-4"
+					>
+						<Text className="font-black text-foreground">
+							Pay {item.ownerName}
+						</Text>
+						<Text className="mt-1 text-muted text-sm">
+							{item.groupName} · {item.ownerEmail}
+						</Text>
+						<Text className="mt-2 font-black text-foreground text-xl">
+							{formatRupees(Math.max(0, remaining))} remaining
+						</Text>
+						<Text className="text-muted text-xs">
+							{formatRupees(Number(item.pendingPaymentPaise))} pending owner
+							approval
+						</Text>
+					</Pressable>
+				);
+			})}
+			{dashboard.data?.pendingPaymentClaims.map((item) => (
+				<Pressable
+					key={item.id}
+					onPress={() => router.push("/(drawer)/(tabs)")}
+					className="mb-3 border-2 border-foreground bg-[#c8f55a] p-4"
+				>
+					<Text className="font-black text-black">
+						Approval needed · {item.personName}
+					</Text>
+					<Text className="mt-1 text-black">
+						{formatRupees(item.amountPaise)} · {item.groupName}
+					</Text>
+				</Pressable>
+			))}
+			{!shared.data?.length && !dashboard.data?.pendingPaymentClaims.length && (
+				<Text className="text-muted">No payments need attention.</Text>
+			)}
 			<Text className="mt-7 mb-3 font-black text-foreground text-xl">
 				What do you need?
 			</Text>

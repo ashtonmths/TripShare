@@ -1,10 +1,16 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { authClient } from "@/lib/auth-client";
 
 export default function TabLayout() {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
+	const insets = useSafeAreaInsets();
+	const { data: session, isPending } = authClient.useSession();
+	if (isPending) return null;
+	if (!session) return <Redirect href="/(drawer)" />;
 
 	return (
 		<Tabs
@@ -18,8 +24,8 @@ export default function TabLayout() {
 					backgroundColor: themeColorBackground,
 					borderTopColor: themeColorForeground,
 					borderTopWidth: 2,
-					height: 68,
-					paddingBottom: 7,
+					height: 62 + insets.bottom,
+					paddingBottom: Math.max(insets.bottom, 7),
 				},
 				tabBarActiveBackgroundColor: "#c8f55a",
 				tabBarIconStyle: { marginBottom: 0 },
@@ -60,9 +66,9 @@ export default function TabLayout() {
 			<Tabs.Screen
 				name="three"
 				options={{
-					title: "Shared",
+					title: "Profile",
 					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="eye-outline" size={size} color={color} />
+						<Ionicons name="person-circle" size={size} color={color} />
 					),
 				}}
 			/>
