@@ -5,6 +5,7 @@ import {
 	journey,
 	journeyParticipant,
 	payment,
+	paymentClaim,
 	person,
 } from "@TripShare/db/schema/tripshare";
 import {
@@ -263,6 +264,22 @@ export const groupRouter = router({
 				.innerJoin(person, eq(person.id, correctionRequest.personId))
 				.where(eq(person.groupId, record.id))
 				.orderBy(desc(correctionRequest.createdAt));
+			const paymentClaims = await ctx.db
+				.select({
+					id: paymentClaim.id,
+					personId: paymentClaim.personId,
+					personName: person.name,
+					amountPaise: paymentClaim.amountPaise,
+					method: paymentClaim.method,
+					paidOn: paymentClaim.paidOn,
+					note: paymentClaim.note,
+					status: paymentClaim.status,
+					createdAt: paymentClaim.createdAt,
+				})
+				.from(paymentClaim)
+				.innerJoin(person, eq(person.id, paymentClaim.personId))
+				.where(eq(paymentClaim.groupId, record.id))
+				.orderBy(desc(paymentClaim.createdAt));
 			const journeyIds = journeys.map((item) => item.id);
 			const participants = journeyIds.length
 				? await ctx.db
@@ -294,6 +311,7 @@ export const groupRouter = router({
 				payments,
 				balances: calculateBalances(participants, payments),
 				corrections,
+				paymentClaims,
 			};
 		}),
 });
@@ -305,7 +323,7 @@ export const peopleRouter = router({
 				groupId: id,
 				name: z.string().trim().min(2).max(80),
 				phone: z.string().trim().max(30).optional(),
-				email,
+				email: email.optional().or(z.literal("")),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -317,7 +335,7 @@ export const peopleRouter = router({
 					groupId: input.groupId,
 					name: input.name,
 					phone: input.phone || null,
-					email: input.email,
+					email: input.email || null,
 				})
 				.returning();
 			return created;
@@ -568,6 +586,11 @@ export const sharedTripRouter = router({
 				vehicleName: group.vehicleName,
 				personId: person.id,
 				personName: person.name,
+				ownerName: sql<string>`(select name from "user" where id = ${group.ownerId})`,
+				ownerEmail: sql<string>`(select email from "user" where id = ${group.ownerId})`,
+				owedPaise: sql<number>`coalesce((select sum(jp.share_paise) from journey_participant jp inner join journey j on j.id = jp.journey_id where jp.person_id = ${person.id} and j.group_id = ${group.id}), 0)`,
+				paidPaise: sql<number>`coalesce((select sum(p.amount_paise) from payment p where p.person_id = ${person.id} and p.group_id = ${group.id}), 0)`,
+				pendingPaymentPaise: sql<number>`coalesce((select sum(pc.amount_paise) from payment_claim pc where pc.person_id = ${person.id} and pc.group_id = ${group.id} and pc.status = 'pending'), 0)`,
 			})
 			.from(person)
 			.innerJoin(group, eq(group.id, person.groupId))
@@ -589,6 +612,11 @@ export const sharedTripRouter = router({
 					personName: person.name,
 					groupName: group.name,
 					vehicleName: group.vehicleName,
+					ownerName: sql<string>`(select name from "user" where id = ${group.ownerId})`,
+					ownerEmail: sql<string>`(select email from "user" where id = ${group.ownerId})`,
+					owedPaise: sql<number>`coalesce((select sum(jp.share_paise) from journey_participant jp inner join journey j on j.id = jp.journey_id where jp.person_id = ${person.id} and j.group_id = ${group.id}), 0)`,
+					paidPaise: sql<number>`coalesce((select sum(p.amount_paise) from payment p where p.person_id = ${person.id} and p.group_id = ${group.id}), 0)`,
+					pendingPaymentPaise: sql<number>`coalesce((select sum(pc.amount_paise) from payment_claim pc where pc.person_id = ${person.id} and pc.group_id = ${group.id} and pc.status = 'pending'), 0)`,
 				})
 				.from(person)
 				.innerJoin(group, eq(group.id, person.groupId))
@@ -679,6 +707,105 @@ export const sharedTripRouter = router({
 					message: "A correction was already raised for this journey",
 				});
 			return created;
+		}),
+	claimPayment: protectedProcedure
+		.input(
+			z.object({
+				groupId: id,
+				amountPaise: z.number().int().positive().max(MAX_PAYMENT_PAISE),
+				method: paymentMethodSchema,
+				paidOn: isoDateSchema,
+				note: z.string().trim().max(200).optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [membership] = await ctx.db
+				.select({ personId: person.id })
+				.from(person)
+				.innerJoin(group, eq(group.id, person.groupId))
+				.where(
+					and(
+						eq(group.id, input.groupId),
+						eq(person.isActive, 1),
+						sql`lower(${person.email}) = lower(${ctx.session.user.email})`,
+						sql`${group.ownerId} <> ${ctx.session.user.id}`,
+					),
+				)
+				.limit(1);
+			if (!membership)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Shared trip not found",
+				});
+			const [created] = await ctx.db
+				.insert(paymentClaim)
+				.values({
+					id: crypto.randomUUID(),
+					groupId: input.groupId,
+					personId: membership.personId,
+					requesterUserId: ctx.session.user.id,
+					amountPaise: input.amountPaise,
+					method: input.method,
+					paidOn: input.paidOn,
+					note: input.note || null,
+				})
+				.returning();
+			return created;
+		}),
+});
+
+export const paymentClaimRouter = router({
+	resolve: protectedProcedure
+		.input(
+			z.object({
+				groupId: id,
+				claimId: id,
+				status: z.enum(["approved", "rejected"]),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ownedGroup(ctx, input.groupId);
+			const [claim] = await ctx.db
+				.select()
+				.from(paymentClaim)
+				.where(
+					and(
+						eq(paymentClaim.id, input.claimId),
+						eq(paymentClaim.groupId, input.groupId),
+						eq(paymentClaim.status, "pending"),
+					),
+				)
+				.limit(1);
+			if (!claim)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Pending payment claim not found",
+				});
+			return ctx.db.transaction(async (tx) => {
+				if (input.status === "approved")
+					await tx
+						.insert(payment)
+						.values({
+							id: crypto.randomUUID(),
+							groupId: claim.groupId,
+							personId: claim.personId,
+							amountPaise: claim.amountPaise,
+							method: claim.method,
+							paidOn: claim.paidOn,
+							note: claim.note,
+						});
+				const [updated] = await tx
+					.update(paymentClaim)
+					.set({ status: input.status, resolvedAt: new Date() })
+					.where(
+						and(
+							eq(paymentClaim.id, claim.id),
+							eq(paymentClaim.status, "pending"),
+						),
+					)
+					.returning();
+				return updated;
+			});
 		}),
 });
 
@@ -783,6 +910,7 @@ export const appRouter = router({
 	payments: paymentRouter,
 	sharedTrips: sharedTripRouter,
 	corrections: correctionRouter,
+	paymentClaims: paymentClaimRouter,
 	dashboard: protectedProcedure.query(async ({ ctx }) => {
 		const groups = await ctx.db
 			.select()
@@ -795,6 +923,7 @@ export const appRouter = router({
 				totalOwedPaise: 0,
 				totalPaidPaise: 0,
 				recentJourneys: [],
+				pendingPaymentClaims: [],
 			};
 		const groupIds = groups.map((item) => item.id);
 		const allJourneys = await ctx.db
@@ -817,12 +946,33 @@ export const appRouter = router({
 				.innerJoin(journey, eq(journey.id, journeyParticipant.journeyId))
 				.where(inArray(journey.groupId, groupIds)),
 		]);
+		const pendingPaymentClaims = await ctx.db
+			.select({
+				id: paymentClaim.id,
+				groupId: paymentClaim.groupId,
+				groupName: group.name,
+				personName: person.name,
+				amountPaise: paymentClaim.amountPaise,
+				method: paymentClaim.method,
+				paidOn: paymentClaim.paidOn,
+			})
+			.from(paymentClaim)
+			.innerJoin(group, eq(group.id, paymentClaim.groupId))
+			.innerJoin(person, eq(person.id, paymentClaim.personId))
+			.where(
+				and(
+					inArray(paymentClaim.groupId, groupIds),
+					eq(paymentClaim.status, "pending"),
+				),
+			)
+			.orderBy(desc(paymentClaim.createdAt));
 		return {
 			groupCount: groups.length,
 			journeyCount: allJourneys.length,
 			totalOwedPaise: Number(owed[0]?.total ?? 0),
 			totalPaidPaise: Number(payments[0]?.total ?? 0),
 			recentJourneys: allJourneys.slice(0, 5),
+			pendingPaymentClaims,
 		};
 	}),
 });

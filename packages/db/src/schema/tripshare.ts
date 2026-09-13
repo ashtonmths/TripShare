@@ -178,6 +178,34 @@ export const correctionRequest = pgTable(
 	],
 );
 
+export const paymentClaim = pgTable(
+	"payment_claim",
+	{
+		id: text("id").primaryKey(),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => group.id, { onDelete: "cascade" }),
+		personId: text("person_id")
+			.notNull()
+			.references(() => person.id, { onDelete: "cascade" }),
+		requesterUserId: text("requester_user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		amountPaise: integer("amount_paise").notNull(),
+		method: paymentMethod("method").notNull(),
+		paidOn: date("paid_on", { mode: "string" }).notNull(),
+		note: text("note"),
+		status: correctionStatus("status").default("pending").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+	},
+	(table) => [
+		index("payment_claim_group_status_idx").on(table.groupId, table.status),
+	],
+);
+
 export const groupRelations = relations(group, ({ many, one }) => ({
 	owner: one(user, { fields: [group.ownerId], references: [user.id] }),
 	people: many(person),
