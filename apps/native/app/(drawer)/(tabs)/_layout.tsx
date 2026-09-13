@@ -26,7 +26,6 @@ function NativeTabBar({ state, navigation }: NativeTabBarProps) {
 		<View
 			style={{
 				height: 68 + Math.max(insets.bottom, 10),
-				paddingBottom: Math.max(insets.bottom, 10),
 				backgroundColor: background,
 				borderTopColor: foreground,
 				borderTopWidth: 2,
@@ -49,7 +48,7 @@ function NativeTabBar({ state, navigation }: NativeTabBarProps) {
 							justifyContent: "center",
 							backgroundColor: active ? "#c8f55a" : background,
 							paddingTop: 7,
-							paddingBottom: 5,
+							paddingBottom: Math.max(insets.bottom, 10) + 5,
 						}}
 					>
 						<Ionicons
