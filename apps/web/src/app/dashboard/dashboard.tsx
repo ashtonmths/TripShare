@@ -673,13 +673,12 @@ function Panel({
 							</Field>
 							<Field label="Email">
 								<input
-									required
 									type="email"
 									onChange={(e) => set("email", e.target.value)}
 								/>
 							</Field>
 							<p className="hint">
-								Their Google account with this email gets automatic read-only
+								Optional. Adding a Google email later enables automatic read-only
 								access.
 							</p>
 						</>

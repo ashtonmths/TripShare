@@ -21,6 +21,7 @@
 body {
 	background: var(--paper);
 	color: var(--ink);
+	font-family: var(--font-space-grotesk), sans-serif;
 	transition:
 		background-color 0.3s ease,
 		color 0.3s ease;

@@ -1,4 +1,5 @@
 import "@/global.css";
+import { SpaceGrotesk_400Regular, SpaceGrotesk_700Bold, useFonts } from "@expo-google-fonts/space-grotesk";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { HeroUINativeProvider } from "heroui-native";
@@ -21,6 +22,8 @@ function StackLayout() {
 }
 
 export default function Layout() {
+	const [fontsLoaded] = useFonts({ SpaceGrotesk_400Regular, SpaceGrotesk_700Bold });
+	if (!fontsLoaded) return null;
 	return (
 		<QueryClientProvider client={queryClient}>
 			<GestureHandlerRootView style={{ flex: 1 }}>

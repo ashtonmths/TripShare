@@ -824,7 +824,7 @@ function Editor({
 									onChange={(v) => set("name", v)}
 								/>
 								<Field
-									label="Google account email"
+									label="Google account email (optional)"
 									value={form.email ?? ""}
 									onChange={(v) => set("email", v)}
 									keyboardType="email-address"
