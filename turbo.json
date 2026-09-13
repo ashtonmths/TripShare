@@ -45,6 +45,8 @@
 		"VERCEL_ENV",
 		"VERCEL_PROJECT_PRODUCTION_URL",
 		"VERCEL_URL",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET", 
 		"_VARLOCK_ENV_KEY"
 	],
 	"globalDependencies": [".env*", "apps/*/.env*", "packages/*/.env*"]
