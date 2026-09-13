@@ -355,6 +355,36 @@ export const peopleRouter = router({
 				throw new TRPCError({ code: "NOT_FOUND", message: "Person not found" });
 			return updated;
 		}),
+	updateContact: protectedProcedure
+		.input(
+			z.object({
+				groupId: id,
+				personId: id,
+				name: z.string().trim().min(2).max(80),
+				email: email.optional().or(z.literal("")),
+				phone: z.string().trim().max(30).optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ownedGroup(ctx, input.groupId);
+			const [updated] = await ctx.db
+				.update(person)
+				.set({
+					name: input.name,
+					email: input.email || null,
+					phone: input.phone || null,
+				})
+				.where(
+					and(eq(person.id, input.personId), eq(person.groupId, input.groupId)),
+				)
+				.returning();
+			if (!updated)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Partner not found",
+				});
+			return updated;
+		}),
 });
 
 export const fuelRouter = router({
@@ -923,6 +953,7 @@ export const appRouter = router({
 				totalPaidPaise: 0,
 				recentJourneys: [],
 				pendingPaymentClaims: [],
+				pendingCorrections: [],
 			};
 		const groupIds = groups.map((item) => item.id);
 		const allJourneys = await ctx.db
@@ -965,6 +996,24 @@ export const appRouter = router({
 				),
 			)
 			.orderBy(desc(paymentClaim.createdAt));
+		const pendingCorrections = await ctx.db
+			.select({
+				id: correctionRequest.id,
+				groupId: group.id,
+				groupName: group.name,
+				personName: person.name,
+			})
+			.from(correctionRequest)
+			.innerJoin(journey, eq(journey.id, correctionRequest.journeyId))
+			.innerJoin(group, eq(group.id, journey.groupId))
+			.innerJoin(person, eq(person.id, correctionRequest.personId))
+			.where(
+				and(
+					inArray(group.id, groupIds),
+					eq(correctionRequest.status, "pending"),
+				),
+			)
+			.orderBy(desc(correctionRequest.createdAt));
 		return {
 			groupCount: groups.length,
 			journeyCount: allJourneys.length,
@@ -972,6 +1021,7 @@ export const appRouter = router({
 			totalPaidPaise: Number(payments[0]?.total ?? 0),
 			recentJourneys: allJourneys.slice(0, 5),
 			pendingPaymentClaims,
+			pendingCorrections,
 		};
 	}),
 });

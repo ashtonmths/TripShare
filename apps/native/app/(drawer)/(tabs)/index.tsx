@@ -285,6 +285,7 @@ export default function Trips() {
 		enabled: Boolean(session && sharedSelected),
 	});
 	const [mode, setMode] = useState<Mode>();
+	const [editingPersonId, setEditingPersonId] = useState<string>();
 	const refresh = async () => {
 		await queryClient.invalidateQueries();
 		setMode(undefined);
@@ -399,7 +400,10 @@ export default function Trips() {
 						<Action
 							icon="person-add-outline"
 							label="Partner"
-							onPress={() => setMode("person")}
+							onPress={() => {
+								setEditingPersonId(undefined);
+								setMode("person");
+							}}
 						/>
 						<Action
 							icon="cash-outline"
@@ -417,8 +421,12 @@ export default function Trips() {
 							);
 							const due = balance?.balancePaise ?? 0;
 							return (
-								<View
+								<Pressable
 									key={member.id}
+									onPress={() => {
+										setEditingPersonId(member.id);
+										setMode("person");
+									}}
 									className="mb-2 flex-row items-center border-2 border-foreground bg-background p-4"
 								>
 									<View className="mr-3 h-10 w-10 items-center justify-center border-2 border-foreground bg-[#ff9fb2]">
@@ -438,7 +446,7 @@ export default function Trips() {
 									<Text className="font-black text-foreground">
 										{due <= 0 ? "Settled" : formatRupees(due)}
 									</Text>
-								</View>
+								</Pressable>
 							);
 						})
 					)}
@@ -510,6 +518,7 @@ export default function Trips() {
 					mode={mode}
 					groupId={groupId}
 					data={detail.data}
+					editingPersonId={editingPersonId}
 					close={() => setMode(undefined)}
 					saved={refresh}
 				/>
@@ -656,16 +665,21 @@ function Editor({
 	mode,
 	groupId,
 	data,
+	editingPersonId,
 	close,
 	saved,
 }: {
 	mode: Mode;
 	groupId?: string;
 	data?: Detail;
+	editingPersonId?: string;
 	close: () => void;
 	saved: () => Promise<void>;
 }) {
 	const group = data?.group;
+	const editingPerson = data?.people.find(
+		(item) => item.id === editingPersonId,
+	);
 	const [form, setForm] = useState<Record<string, string>>({
 		startDate: today(),
 		paidOn: today(),
@@ -676,6 +690,9 @@ function Editor({
 		fuelState: group?.fuelState ?? "Karnataka",
 		fuelDistrict: group?.fuelDistrict ?? "",
 		fuelLocationId: String(group?.fuelLocationId ?? ""),
+		name: editingPerson?.name ?? "",
+		email: editingPerson?.email ?? "",
+		phone: editingPerson?.phone ?? "",
 	});
 	const set = (key: string, value: string) =>
 		setForm((old) => ({ ...old, [key]: value }));
@@ -688,6 +705,9 @@ function Editor({
 		trpc.groups.create.mutationOptions(callbacks),
 	);
 	const addPerson = useMutation(trpc.people.add.mutationOptions(callbacks));
+	const updatePerson = useMutation(
+		trpc.people.updateContact.mutationOptions(callbacks),
+	);
 	const addPayment = useMutation(
 		trpc.payments.create.mutationOptions(callbacks),
 	);
@@ -717,6 +737,7 @@ function Editor({
 	const busy =
 		createGroup.isPending ||
 		addPerson.isPending ||
+		updatePerson.isPending ||
 		addPayment.isPending ||
 		settings.isPending;
 	const submit = () => {
@@ -728,7 +749,15 @@ function Editor({
 				normalOneWayKm: Number(form.distance),
 				startDate: form.startDate,
 			});
-		if (mode === "person" && groupId)
+		if (mode === "person" && groupId && editingPersonId)
+			updatePerson.mutate({
+				groupId,
+				personId: editingPersonId,
+				name: form.name ?? "",
+				email: form.email,
+				phone: form.phone,
+			});
+		else if (mode === "person" && groupId)
 			addPerson.mutate({
 				groupId,
 				name: form.name ?? "",
@@ -770,7 +799,9 @@ function Editor({
 							{mode === "group"
 								? "New trip"
 								: mode === "person"
-									? "Add partner"
+									? editingPersonId
+										? "Edit partner"
+										: "Add partner"
 									: mode === "payment"
 										? "Record payment"
 										: "Trip settings"}

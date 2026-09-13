@@ -205,6 +205,15 @@ function SharedTrips({ items }: { items: SharedItem[] }) {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const claimPayment = useMutation(
+		trpc.sharedTrips.claimPayment.mutationOptions({
+			onSuccess: async () => {
+				toast.success("Payment sent for owner approval");
+				await detail.refetch();
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 	if (!items.length) return null;
 	return (
 		<section className="ledger-pane" style={{ marginBottom: 24 }}>
@@ -225,6 +234,23 @@ function SharedTrips({ items }: { items: SharedItem[] }) {
 					</button>
 				))}
 			</div>
+			{detail.data && (
+				<button
+					type="button"
+					onClick={() => {
+						const amount = window.prompt("Amount paid in rupees");
+						if (amount && Number(amount) > 0)
+							claimPayment.mutate({
+								groupId: detail.data.groupId,
+								amountPaise: Math.round(Number(amount) * 100),
+								method: "upi",
+								paidOn: today(),
+							});
+					}}
+				>
+					Mark payment sent
+				</button>
+			)}
 			{detail.data?.journeys.map((ride) => (
 				<article className="journey-row" key={ride.id}>
 					<span className="journey-copy">
@@ -273,6 +299,17 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const resolvePayment = useMutation(
+		trpc.paymentClaims.resolve.mutationOptions({
+			onSuccess: async () => {
+				toast.success("Payment updated");
+				await queryClient.invalidateQueries({
+					queryKey: trpc.groups.detail.queryKey({ groupId: data.group.id }),
+				});
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 	return (
 		<>
 			<div className="ledger-header">
@@ -296,6 +333,57 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 					</button>
 				</div>
 			</div>
+			<section>
+				<div className="section-title">
+					<div>
+						<p className="eyebrow">Payments</p>
+						<h3>Pending approval</h3>
+					</div>
+				</div>
+				{data.paymentClaims
+					.filter((item) => item.status === "pending")
+					.map((item) => (
+						<article className="journey-row" key={item.id}>
+							<span className="journey-copy">
+								<b>
+									{item.personName} · {formatRupees(item.amountPaise)}
+								</b>
+								<small>
+									{item.method.replace("_", " ")} · {item.paidOn}
+								</small>
+							</span>
+							<span className="button-row">
+								<button
+									type="button"
+									onClick={() =>
+										resolvePayment.mutate({
+											groupId: data.group.id,
+											claimId: item.id,
+											status: "approved",
+										})
+									}
+								>
+									Approve
+								</button>
+								<button
+									type="button"
+									onClick={() =>
+										resolvePayment.mutate({
+											groupId: data.group.id,
+											claimId: item.id,
+											status: "rejected",
+										})
+									}
+								>
+									Reject
+								</button>
+							</span>
+						</article>
+					))}
+				{!data.paymentClaims.some((item) => item.status === "pending") && (
+					<p className="muted">No pending payment claims.</p>
+				)}
+			</section>
 			<section>
 				<div className="section-title">
 					<div>
@@ -678,8 +766,8 @@ function Panel({
 								/>
 							</Field>
 							<p className="hint">
-								Optional. Adding a Google email later enables automatic read-only
-								access.
+								Optional. Adding a Google email later enables automatic
+								read-only access.
 							</p>
 						</>
 					)}

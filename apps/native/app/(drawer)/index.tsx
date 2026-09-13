@@ -149,9 +149,23 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 					</Text>
 				</Pressable>
 			))}
-			{!shared.data?.length && !dashboard.data?.pendingPaymentClaims.length && (
-				<Text className="text-muted">No payments need attention.</Text>
-			)}
+			{dashboard.data?.pendingCorrections.map((item) => (
+				<Pressable
+					key={item.id}
+					onPress={() => router.push("/(drawer)/(tabs)")}
+					className="mb-3 border-2 border-foreground bg-[#ff9fb2] p-4"
+				>
+					<Text className="font-black text-black">
+						Attendance dispute · {item.personName}
+					</Text>
+					<Text className="mt-1 text-black">Review in {item.groupName}</Text>
+				</Pressable>
+			))}
+			{!shared.data?.length &&
+				!dashboard.data?.pendingPaymentClaims.length &&
+				!dashboard.data?.pendingCorrections.length && (
+					<Text className="text-muted">No payments need attention.</Text>
+				)}
 			<Text className="mt-7 mb-3 font-black text-foreground text-xl">
 				What do you need?
 			</Text>
