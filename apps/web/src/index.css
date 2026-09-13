@@ -103,6 +103,30 @@ a:active {
 	justify-content: flex-end;
 	gap: 8px;
 }
+.mobile-nav-toggle,
+.mobile-drawer,
+.mobile-drawer-backdrop {
+	display: none;
+}
+.user-trigger {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.user-avatar {
+	width: 24px;
+	height: 24px;
+	display: grid;
+	place-items: center;
+	border: 2px solid var(--ink);
+	border-radius: 50%;
+	background-color: var(--blue);
+	background-position: center;
+	background-size: cover;
+	color: #171717;
+	font-size: 11px;
+	font-weight: 900;
+}
 .nav-actions button,
 .nav-actions a {
 	border: var(--hard-border);
@@ -686,7 +710,7 @@ legend {
 
 .auth-page {
 	width: 100%;
-	min-height: calc(100svh - 61px);
+	min-height: 100svh;
 	margin: 0;
 	display: grid;
 	grid-template-columns: 0.9fr 1.1fr;
@@ -813,7 +837,71 @@ legend {
 		display: none;
 	}
 	.nav-actions {
-		gap: 5px;
+		display: none;
+	}
+	.mobile-nav-toggle {
+		display: grid;
+		place-items: center;
+		width: 42px;
+		height: 42px;
+		border: var(--hard-border);
+		background: var(--lime);
+		color: #171717;
+		box-shadow: 3px 3px 0 var(--ink);
+	}
+	.mobile-drawer-backdrop {
+		position: fixed;
+		z-index: 31;
+		inset: 0;
+		display: block;
+		border: 0;
+		background: rgb(0 0 0 / 0.58);
+	}
+	.mobile-drawer {
+		position: fixed;
+		z-index: 32;
+		top: 0;
+		right: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 18px;
+		width: 60vw;
+		max-width: 320px;
+		height: 100svh;
+		overflow-y: auto;
+		padding: 24px 16px;
+		border-left: var(--hard-border);
+		background: var(--paper);
+		color: var(--ink);
+		box-shadow: -5px 0 0 var(--ink);
+	}
+	.mobile-drawer > strong {
+		font-size: 24px;
+	}
+	.mobile-drawer nav {
+		display: grid;
+		gap: 9px;
+	}
+	.mobile-drawer nav a {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		padding: 12px;
+		border: var(--hard-border);
+		background: var(--background);
+		color: var(--ink);
+		font-weight: 850;
+	}
+	.mobile-drawer-actions {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		color: var(--ink);
+		font-weight: 850;
+	}
+	.mobile-drawer > :last-child {
+		margin-top: auto;
 	}
 	.brand {
 		font-size: 18px;

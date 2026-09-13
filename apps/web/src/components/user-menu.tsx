@@ -11,6 +11,7 @@ import {
 import { Skeleton } from "@TripShare/ui/components/skeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 
@@ -32,14 +33,44 @@ export default function UserMenu() {
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="outline" />}>
-				{session.user.name}
+			<DropdownMenuTrigger
+				render={<Button className="user-trigger" variant="outline" />}
+			>
+				<span
+					className="user-avatar"
+					style={
+						session.user.image
+							? { backgroundImage: `url(${session.user.image})` }
+							: undefined
+					}
+				>
+					{session.user.image
+						? ""
+						: session.user.name.slice(0, 1).toUpperCase()}
+				</span>
+				<span className="user-name">{session.user.name}</span>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="bg-card">
 				<DropdownMenuGroup>
 					<DropdownMenuLabel>My Account</DropdownMenuLabel>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={async () => {
+							const name = window.prompt("Display name", session.user.name);
+							if (!name || name.trim().length < 2 || name === session.user.name)
+								return;
+							const result = await authClient.updateUser({ name: name.trim() });
+							if (result.error)
+								toast.error(result.error.message ?? "Profile update failed");
+							else {
+								toast.success("Profile updated");
+								router.refresh();
+							}
+						}}
+					>
+						Edit display name
+					</DropdownMenuItem>
 					<DropdownMenuItem
 						variant="destructive"
 						onClick={() => {
