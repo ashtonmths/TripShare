@@ -605,13 +605,11 @@ legend {
 }
 
 .auth-page {
-	width: min(920px, calc(100% - 32px));
-	margin: 40px auto;
-	align-self: start;
+	width: 100%;
+	min-height: calc(100svh - 61px);
+	margin: 0;
 	display: grid;
 	grid-template-columns: 0.9fr 1.1fr;
-	border: var(--hard-border);
-	box-shadow: 8px 8px 0 var(--ink);
 	background: var(--background);
 }
 .auth-side {
@@ -804,7 +802,7 @@ legend {
 	}
 	.auth-page {
 		display: block;
-		margin: 24px auto;
+		margin: 0;
 	}
 	.auth-side {
 		padding: 30px;
