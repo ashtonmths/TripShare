@@ -37,11 +37,21 @@ export default function Dashboard() {
 	const summary = useQuery(trpc.dashboard.queryOptions());
 	const shared = useQuery(trpc.sharedTrips.list.queryOptions());
 	const [selected, setSelected] = useState<string>();
+	const [sharedSelected, setSharedSelected] = useState<string>();
 	const [panel, setPanel] = useState<Action>();
-	const groupId = selected ?? groups.data?.[0]?.id;
+	const activeSharedId =
+		sharedSelected ??
+		(!groups.data?.length ? shared.data?.[0]?.groupId : undefined);
+	const groupId = activeSharedId
+		? undefined
+		: (selected ?? groups.data?.[0]?.id);
 	const detail = useQuery({
 		...trpc.groups.detail.queryOptions({ groupId: groupId ?? "" }),
 		enabled: Boolean(groupId),
+	});
+	const sharedDetail = useQuery({
+		...trpc.sharedTrips.detail.queryOptions({ groupId: activeSharedId ?? "" }),
+		enabled: Boolean(activeSharedId),
 	});
 	const refresh = async () =>
 		Promise.all([
@@ -106,13 +116,12 @@ export default function Dashboard() {
 					<small>{summary.data?.groupCount ?? 0} groups</small>
 				</div>
 			</section>
-			<SharedTrips items={shared.data ?? []} />
 			<div className="workspace-grid">
 				<aside className="groups-pane">
 					<div className="section-title">
 						<div>
-							<p className="eyebrow">Groups</p>
-							<h2>Your carpools</h2>
+							<p className="eyebrow">Trips</p>
+							<h2>All trips</h2>
 						</div>
 						<button
 							className="icon-button"
@@ -123,31 +132,59 @@ export default function Dashboard() {
 							<Plus size={18} />
 						</button>
 					</div>
-					{!groups.data?.length ? (
-						<Empty icon={<Car />} text="Create your first group to begin." />
+					{!groups.data?.length && !shared.data?.length ? (
+						<Empty
+							icon={<Car />}
+							text="Create a trip or ask an owner to add your Google email."
+						/>
 					) : (
-						groups.data.map((item) => (
-							<button
-								type="button"
-								key={item.id}
-								className={`group-row ${groupId === item.id ? "active" : ""}`}
-								onClick={() => setSelected(item.id)}
-							>
-								<span className="group-icon">
-									<Car size={18} />
-								</span>
-								<span>
-									<b>{item.name}</b>
-									<small>
-										{item.vehicleName} · {item.mileageKmpl} km/l
-									</small>
-								</span>
-							</button>
-						))
+						<>
+							{groups.data?.map((item) => (
+								<button
+									type="button"
+									key={item.id}
+									className={`group-row ${groupId === item.id ? "active" : ""}`}
+									onClick={() => {
+										setSelected(item.id);
+										setSharedSelected(undefined);
+									}}
+								>
+									<span className="group-icon">
+										<Car size={18} />
+									</span>
+									<span>
+										<b>{item.name}</b>
+										<small>{item.vehicleName} · Owner</small>
+									</span>
+								</button>
+							))}
+							{shared.data?.map((item) => (
+								<button
+									type="button"
+									key={item.groupId}
+									className={`group-row ${activeSharedId === item.groupId ? "active" : ""}`}
+									onClick={() => setSharedSelected(item.groupId)}
+								>
+									<span className="group-icon shared">
+										<Users size={18} />
+									</span>
+									<span>
+										<b>{item.groupName}</b>
+										<small>Read only</small>
+									</span>
+								</button>
+							))}
+						</>
 					)}
 				</aside>
 				<section className="ledger-pane">
-					{!groupId ? (
+					{activeSharedId ? (
+						sharedDetail.isLoading ? (
+							<div className="skeleton-block" />
+						) : sharedDetail.data ? (
+							<SharedLedger data={sharedDetail.data} />
+						) : null
+					) : !groupId ? (
 						<div className="state-box">
 							<Car />
 							<h2>No groups yet</h2>
@@ -188,19 +225,15 @@ const Empty = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
 	</div>
 );
 
-type SharedItem = inferRouterOutputs<AppRouter>["sharedTrips"]["list"][number];
-function SharedTrips({ items }: { items: SharedItem[] }) {
-	const [selected, setSelected] = useState<string>();
-	const groupId = selected ?? items[0]?.groupId;
-	const detail = useQuery({
-		...trpc.sharedTrips.detail.queryOptions({ groupId: groupId ?? "" }),
-		enabled: Boolean(groupId),
-	});
+type SharedDetail = inferRouterOutputs<AppRouter>["sharedTrips"]["detail"];
+function SharedLedger({ data }: { data: SharedDetail }) {
 	const correction = useMutation(
 		trpc.sharedTrips.raiseCorrection.mutationOptions({
 			onSuccess: async () => {
 				toast.success("Correction sent to the trip owner");
-				await detail.refetch();
+				await queryClient.invalidateQueries({
+					queryKey: trpc.sharedTrips.detail.queryKey({ groupId: data.groupId }),
+				});
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -209,80 +242,95 @@ function SharedTrips({ items }: { items: SharedItem[] }) {
 		trpc.sharedTrips.claimPayment.mutationOptions({
 			onSuccess: async () => {
 				toast.success("Payment sent for owner approval");
-				await detail.refetch();
+				await queryClient.invalidateQueries({
+					queryKey: trpc.sharedTrips.detail.queryKey({ groupId: data.groupId }),
+				});
 			},
 			onError: (error) => toast.error(error.message),
 		}),
 	);
-	if (!items.length) return null;
+	const remaining = Number(data.owedPaise) - Number(data.paidPaise);
 	return (
-		<section className="ledger-pane" style={{ marginBottom: 24 }}>
-			<div className="section-title">
+		<>
+			<div className="ledger-header">
 				<div>
-					<p className="eyebrow">Shared with me</p>
-					<h2>Read-only trips</h2>
+					<p className="eyebrow">Read-only trip</p>
+					<h2>{data.groupName}</h2>
+					<p>
+						{data.vehicleName} · added as {data.personName}
+					</p>
 				</div>
-			</div>
-			<div className="button-row">
-				{items.map((item) => (
-					<button
-						type="button"
-						key={item.groupId}
-						onClick={() => setSelected(item.groupId)}
-					>
-						{item.groupName}
-					</button>
-				))}
-			</div>
-			{detail.data && (
 				<button
+					className="text-button"
 					type="button"
 					onClick={() => {
 						const amount = window.prompt("Amount paid in rupees");
 						if (amount && Number(amount) > 0)
 							claimPayment.mutate({
-								groupId: detail.data.groupId,
+								groupId: data.groupId,
 								amountPaise: Math.round(Number(amount) * 100),
 								method: "upi",
 								paidOn: today(),
 							});
 					}}
 				>
-					Mark payment sent
+					<Check size={16} /> Mark payment sent
 				</button>
-			)}
-			{detail.data?.journeys.map((ride) => (
-				<article className="journey-row" key={ride.id}>
-					<span className="journey-copy">
-						<b>{ride.journeyDate}</b>
-						<small>
-							{ride.direction === "two_way"
-								? "Return journey"
-								: "One-way journey"}{" "}
-							· {ride.distanceKm} km · {formatRupees(ride.sharePaise)}
-						</small>
-					</span>
-					{ride.correctionStatus ? (
-						<strong>{ride.correctionStatus}</strong>
-					) : (
-						<button
-							type="button"
-							onClick={() =>
-								correction.mutate({
-									journeyId: ride.id,
-									note: "I did not join this journey.",
-								})
-							}
-						>
-							I wasn’t there
-						</button>
-					)}
-				</article>
-			))}
-			{detail.data && !detail.data.journeys.length && (
-				<p className="muted">No attendance has been recorded for you.</p>
-			)}
-		</section>
+			</div>
+			<section className="shared-payment-summary">
+				<div>
+					<span>Pay to</span>
+					<strong>{data.ownerName}</strong>
+					<small>{data.ownerEmail}</small>
+				</div>
+				<div>
+					<span>Remaining</span>
+					<strong>{formatRupees(Math.max(0, remaining))}</strong>
+					<small>
+						{formatRupees(Number(data.pendingPaymentPaise))} awaiting approval
+					</small>
+				</div>
+			</section>
+			<section>
+				<div className="section-title">
+					<div>
+						<p className="eyebrow">Journeys</p>
+						<h3>My attendance</h3>
+					</div>
+				</div>
+				{data.journeys.map((ride) => (
+					<article className="journey-row" key={ride.id}>
+						<span className="journey-copy">
+							<b>{ride.journeyDate}</b>
+							<small>
+								{ride.direction === "two_way"
+									? "Return journey"
+									: "One-way journey"}{" "}
+								· {ride.distanceKm} km · {formatRupees(ride.sharePaise)}
+							</small>
+						</span>
+						{ride.correctionStatus ? (
+							<strong>{ride.correctionStatus}</strong>
+						) : (
+							<button
+								type="button"
+								onClick={() =>
+									correction.mutate({
+										journeyId: ride.id,
+										note: "I did not join this journey.",
+									})
+								}
+							>
+								I wasn’t there
+							</button>
+						)}
+					</article>
+				))}
+				{!data.journeys.length && (
+					<p className="muted">No attendance has been recorded for you.</p>
+				)}
+			</section>
+		</>
 	);
 }
 

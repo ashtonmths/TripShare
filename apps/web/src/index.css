@@ -370,6 +370,9 @@ a:active {
 	background: var(--pink);
 	color: #171717;
 }
+.group-icon.shared {
+	background: var(--lime);
+}
 .ledger-header {
 	padding-bottom: 26px;
 	border-bottom: var(--hard-border);
@@ -394,6 +397,29 @@ a:active {
 }
 .ledger-pane section {
 	padding-top: 27px;
+}
+.ledger-pane section.shared-payment-summary {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 2px;
+	padding: 2px;
+	background: var(--ink);
+	border: var(--hard-border);
+	box-shadow: 4px 4px 0 var(--ink);
+}
+.shared-payment-summary > div {
+	display: grid;
+	gap: 4px;
+	padding: 18px;
+	background: var(--lime);
+	color: #171717;
+}
+.shared-payment-summary span,
+.shared-payment-summary small {
+	font-size: 12px;
+}
+.shared-payment-summary strong {
+	font-size: 20px;
 }
 .balance-list,
 .journey-list {
