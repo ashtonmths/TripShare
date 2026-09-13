@@ -346,8 +346,16 @@ export default function Trips() {
 							}}
 							className={`border-2 border-foreground px-4 py-3 ${groupId === item.id ? "bg-[#8dc8ff]" : "bg-background"}`}
 						>
-							<Text className="font-black text-foreground">{item.name}</Text>
-							<Text className="text-muted text-xs">Owner</Text>
+							<Text
+								className={`font-black ${groupId === item.id ? "text-black" : "text-foreground"}`}
+							>
+								{item.name}
+							</Text>
+							<Text
+								className={`text-xs ${groupId === item.id ? "text-black" : "text-muted"}`}
+							>
+								Owner
+							</Text>
 						</Pressable>
 					))}
 					{shared.data?.map((item) => (
@@ -356,10 +364,16 @@ export default function Trips() {
 							onPress={() => setSharedSelected(item.groupId)}
 							className={`border-2 border-foreground px-4 py-3 ${sharedSelected === item.groupId ? "bg-[#c8f55a]" : "bg-background"}`}
 						>
-							<Text className="font-black text-foreground">
+							<Text
+								className={`font-black ${sharedSelected === item.groupId ? "text-black" : "text-foreground"}`}
+							>
 								{item.groupName}
 							</Text>
-							<Text className="text-muted text-xs">Read only</Text>
+							<Text
+								className={`text-xs ${sharedSelected === item.groupId ? "text-black" : "text-muted"}`}
+							>
+								Read only
+							</Text>
 						</Pressable>
 					))}
 				</View>
@@ -783,6 +797,7 @@ function Editor({
 				<ScrollView
 					className="max-h-[90%] border-2 border-black bg-[#f5f2e8] p-4"
 					keyboardShouldPersistTaps="handled"
+					showsVerticalScrollIndicator={false}
 				>
 					<View className="mb-4 flex-row items-center justify-between">
 						<Text className="font-black text-2xl text-black">

@@ -26,6 +26,12 @@ body {
 		background-color 0.3s ease,
 		color 0.3s ease;
 }
+* {
+	scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+	display: none;
+}
 button,
 a,
 input,
@@ -374,6 +380,11 @@ a:active {
 	background: var(--paper);
 	box-shadow: 3px 3px 0 var(--ink);
 }
+.group-row.active {
+	--group-muted: #30302c;
+	background: var(--blue);
+	color: #171717;
+}
 .group-row > span:nth-child(2) {
 	min-width: 0;
 	display: grid;
@@ -386,7 +397,7 @@ a:active {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	color: var(--muted-ink);
+	color: var(--group-muted, var(--muted-ink));
 }
 .group-icon {
 	padding: 8px;
@@ -606,8 +617,9 @@ legend {
 	padding: 14px;
 	display: grid;
 	gap: 12px;
-	background: color-mix(in srgb, var(--paper) 80%, var(--blue));
+	background: var(--blue);
 	box-shadow: 4px 4px 0 var(--ink);
+	color: #171717;
 }
 .fuel-box > div {
 	display: flex;
@@ -619,7 +631,12 @@ legend {
 	flex: 1;
 }
 .fuel-box small {
-	color: var(--muted-ink);
+	color: #30302c;
+}
+.fuel-box input {
+	border-color: #171717;
+	background: #fffaf0;
+	color: #171717;
 }
 .cost-preview {
 	border: var(--hard-border);

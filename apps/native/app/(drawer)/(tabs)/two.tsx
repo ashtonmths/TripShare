@@ -158,7 +158,11 @@ export default function AddRide() {
 						onPress={() => switchTrip(item.id)}
 						className={`border-2 border-foreground px-4 py-3 ${currentId === item.id ? "bg-[#c8f55a]" : "bg-background"}`}
 					>
-						<Text className="font-black text-foreground">{item.name}</Text>
+						<Text
+							className={`font-black ${currentId === item.id ? "text-black" : "text-foreground"}`}
+						>
+							{item.name}
+						</Text>
 					</Pressable>
 				))}
 			</View>
@@ -262,7 +266,12 @@ export default function AddRide() {
 							{people.includes(item.id) && (
 								<Ionicons name="checkmark" size={16} />
 							)}
-							<Text className="font-black text-foreground"> {item.name}</Text>
+							<Text
+								className={`font-black ${people.includes(item.id) ? "text-black" : "text-foreground"}`}
+							>
+								{" "}
+								{item.name}
+							</Text>
 						</Pressable>
 					))}
 			</View>
@@ -384,7 +393,11 @@ function Choice({
 			onPress={onPress}
 			className={`flex-1 border-2 border-foreground p-4 ${selected ? "bg-[#8dc8ff]" : "bg-background"}`}
 		>
-			<Text className="text-center font-black text-foreground">{label}</Text>
+			<Text
+				className={`text-center font-black ${selected ? "text-black" : "text-foreground"}`}
+			>
+				{label}
+			</Text>
 		</Pressable>
 	);
 }
