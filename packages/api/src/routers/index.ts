@@ -813,16 +813,6 @@ export const paymentClaimRouter = router({
 					message: "Pending payment claim not found",
 				});
 			return ctx.db.transaction(async (tx) => {
-				if (input.status === "approved")
-					await tx.insert(payment).values({
-						id: crypto.randomUUID(),
-						groupId: claim.groupId,
-						personId: claim.personId,
-						amountPaise: claim.amountPaise,
-						method: claim.method,
-						paidOn: claim.paidOn,
-						note: claim.note,
-					});
 				const [updated] = await tx
 					.update(paymentClaim)
 					.set({ status: input.status, resolvedAt: new Date() })
@@ -833,6 +823,21 @@ export const paymentClaimRouter = router({
 						),
 					)
 					.returning();
+				if (!updated)
+					throw new TRPCError({
+						code: "CONFLICT",
+						message: "Payment claim was already reviewed",
+					});
+				if (input.status === "approved")
+					await tx.insert(payment).values({
+						id: crypto.randomUUID(),
+						groupId: claim.groupId,
+						personId: claim.personId,
+						amountPaise: claim.amountPaise,
+						method: claim.method,
+						paidOn: claim.paidOn,
+						note: claim.note,
+					});
 				return updated;
 			});
 		}),
