@@ -5,7 +5,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import {
+	Alert,
+	Pressable,
+	ScrollView,
+	Text,
+	TextInput,
+	View,
+} from "react-native";
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
@@ -602,7 +609,11 @@ function Editor({
 							))}
 						</View>
 						<Text className="font-black text-black text-sm">State</Text>
-						<View className="max-h-44 flex-row flex-wrap gap-2">
+						<ScrollView
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							contentContainerClassName="gap-2"
+						>
 							{states.data?.map((item) => (
 								<Pressable
 									key={item.id}
@@ -618,11 +629,15 @@ function Editor({
 									</Text>
 								</Pressable>
 							))}
-						</View>
+						</ScrollView>
 						<Text className="font-black text-black text-sm">
 							District / city
 						</Text>
-						<View className="max-h-52 flex-row flex-wrap gap-2">
+						<ScrollView
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							contentContainerClassName="gap-2"
+						>
 							{districts.data?.map((item) => (
 								<Pressable
 									key={item.id}
@@ -637,7 +652,7 @@ function Editor({
 									</Text>
 								</Pressable>
 							))}
-						</View>
+						</ScrollView>
 					</>
 				)}
 				<Pressable
