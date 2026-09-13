@@ -17,14 +17,14 @@ export default function Home() {
 					Fair fuel splits.
 				</h1>
 				<p>
-					TripShare keeps a private record of every journey, live Udupi petrol
+					TripShare keeps a private record of every journey, current local fuel
 					prices, and what each person still owes.
 				</p>
 				<div className="hero-actions">
 					<Link className="primary-button" href="/dashboard">
 						Open your ledger <ArrowRight size={17} />
 					</Link>
-					<Link href="/login">Create an account</Link>
+					<Link href="/login">Sign in with Google</Link>
 				</div>
 			</section>
 			<section className="feature-strip">
@@ -32,8 +32,8 @@ export default function Home() {
 					<Fuel />
 					<h2>Price at the pump</h2>
 					<p>
-						Capture the current Udupi petrol price or enter it manually when the
-						service is unavailable.
+						Fetch the current price for your selected city and fuel type, or
+						enter it manually when the source is unavailable.
 					</p>
 				</article>
 				<article>
@@ -48,8 +48,8 @@ export default function Home() {
 					<ShieldCheck />
 					<h2>Private by design</h2>
 					<p>
-						Your passengers are contacts, not users. Only you sign in and manage
-						the ledger.
+						Owners manage the ledger. Partners sign in with Google for private,
+						read-only access to their own attendance.
 					</p>
 				</article>
 			</section>

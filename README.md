@@ -8,7 +8,7 @@ TripShare is a private carpool fuel-expense ledger for a vehicle owner. Passenge
 - Private groups with vehicle, average mileage, normal one-way distance, and tracking start date
 - Contact-only group members with active/inactive status
 - One-way and return journeys with explicit attendance
-- Backend-only live petrol pricing for Udupi, Karnataka via IndianAPI
+- Backend-only local petrol and diesel pricing from the trip's selected state and district
 - Clear manual price fallback when IndianAPI is missing, unavailable, or malformed
 - Immutable journey snapshots of distance, mileage, petrol price, source, total cost, and participant shares
 - Manual partial payments by UPI, cash, bank transfer, or other method
