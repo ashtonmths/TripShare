@@ -3,7 +3,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
+import { AppLoading } from "@/components/app-loading";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
@@ -23,12 +24,7 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 		...trpc.sharedTrips.list.queryOptions(),
 		enabled: Boolean(session),
 	});
-	if (isPending)
-		return (
-			<Container isScrollable={false} className="items-center justify-center">
-				<ActivityIndicator />
-			</Container>
-		);
+	if (isPending) return <AppLoading />;
 	if (!session)
 		return (
 			<Container className="px-5 pt-8">
