@@ -2,6 +2,7 @@ import { formatRupees } from "@TripShare/shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
@@ -9,8 +10,11 @@ import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
 
-export default function Home() {
+export function Home({ inTabs = false }: { inTabs?: boolean }) {
 	const { data: session, isPending } = authClient.useSession();
+	useEffect(() => {
+		if (session && !inTabs) router.replace("/(drawer)/(tabs)/home");
+	}, [inTabs, session]);
 	const dashboard = useQuery({
 		...trpc.dashboard.queryOptions(),
 		enabled: Boolean(session),
@@ -159,6 +163,10 @@ export default function Home() {
 			)}
 		</Container>
 	);
+}
+
+export default function SignInGateway() {
+	return <Home />;
 }
 
 function HomeAction({
