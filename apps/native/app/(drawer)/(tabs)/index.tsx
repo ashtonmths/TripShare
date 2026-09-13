@@ -41,7 +41,7 @@ function Field({
 }) {
 	return (
 		<View className="gap-2">
-			<Text className="font-black text-foreground text-sm">{label}</Text>
+			<Text className="font-black text-black text-sm">{label}</Text>
 			<TextInput
 				value={value}
 				onChangeText={onChange}
@@ -49,7 +49,7 @@ function Field({
 				autoCapitalize={keyboardType === "email-address" ? "none" : "sentences"}
 				placeholder={placeholder}
 				placeholderTextColor="#777"
-				className="border-2 border-foreground bg-background px-4 py-3 text-foreground"
+				className="border-2 border-black bg-white px-4 py-3 text-black"
 			/>
 		</View>
 	);
@@ -330,16 +330,14 @@ export default function Trips() {
 					<Ionicons name="add" size={25} color="#111" />
 				</Pressable>
 			</View>
-			<SectionTitle title="My trips" />
-			{groups.isLoading ? (
-				<Text className="mt-8 text-muted">Loading your trips…</Text>
-			) : !groups.data?.length ? (
-				<View className="mt-6">
-					<Empty text="Create your first trip here. You no longer need the website to get started." />
-				</View>
+			<SectionTitle title="All trips" />
+			{groups.isLoading || shared.isLoading ? (
+				<Text className="text-muted">Loading trips…</Text>
+			) : !groups.data?.length && !shared.data?.length ? (
+				<Empty text="Create a trip or ask an owner to add your Google email." />
 			) : (
 				<View className="flex-row flex-wrap gap-2">
-					{groups.data.map((item) => (
+					{groups.data?.map((item) => (
 						<Pressable
 							key={item.id}
 							onPress={() => {
@@ -349,17 +347,9 @@ export default function Trips() {
 							className={`border-2 border-foreground px-4 py-3 ${groupId === item.id ? "bg-[#8dc8ff]" : "bg-background"}`}
 						>
 							<Text className="font-black text-foreground">{item.name}</Text>
+							<Text className="text-muted text-xs">Owner</Text>
 						</Pressable>
 					))}
-				</View>
-			)}
-			<SectionTitle title="Trips added to" />
-			{!shared.isLoading && !shared.data?.length ? (
-				<Text className="text-muted">
-					No trips have been shared with your email.
-				</Text>
-			) : (
-				<View className="flex-row flex-wrap gap-2">
 					{shared.data?.map((item) => (
 						<Pressable
 							key={item.groupId}

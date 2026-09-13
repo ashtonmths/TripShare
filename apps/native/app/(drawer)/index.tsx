@@ -27,7 +27,7 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 	if (isPending) return <AppLoading />;
 	if (!session)
 		return (
-			<Container className="px-5 pt-8">
+			<Container safeTop className="px-5">
 				<View className="mb-7">
 					<View
 						className="mb-5 h-14 w-14 items-center justify-center border-2 border-foreground bg-[#c8f55a]"
@@ -180,13 +180,6 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 					caption="Partners, payments, balances and settings"
 					onPress={() => router.push("/(drawer)/(tabs)")}
 				/>
-				<HomeAction
-					color="bg-[#c8f55a]"
-					icon="eye-outline"
-					title="Shared with me"
-					caption={`${shared.data?.length ?? 0} read-only ${shared.data?.length === 1 ? "trip" : "trips"}`}
-					onPress={() => router.push("/(drawer)/(tabs)/three")}
-				/>
 			</View>
 			<Text className="mt-7 mb-3 font-black text-foreground text-xl">
 				Recent rides
@@ -197,7 +190,7 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 				<View className="items-center border-2 border-foreground border-dashed p-7">
 					<Ionicons name="trail-sign-outline" size={30} />
 					<Text className="mt-2 text-center text-muted">
-						No owned-trip rides yet. Shared attendance is in Shared with me.
+						No recent rides yet. Your recorded rides will appear here.
 					</Text>
 				</View>
 			) : (
