@@ -9,7 +9,7 @@ TripShare is a private carpool fuel-expense ledger for a vehicle owner. Passenge
 - Contact-only group members with active/inactive status
 - One-way and return journeys with explicit attendance
 - Backend-only local petrol and diesel pricing from the trip's selected state and district
-- Clear manual price fallback when IndianAPI is missing, unavailable, or malformed
+- Clear manual price fallback when the live-price source is unavailable or malformed
 - Immutable journey snapshots of distance, mileage, petrol price, source, total cost, and participant shares
 - Manual partial payments by UPI, cash, bank transfer, or other method
 - Responsive Next.js PWA and genuine Expo Router native screens with light/dark support
