@@ -7,6 +7,9 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
 	Alert,
+	KeyboardAvoidingView,
+	Modal,
+	Platform,
 	Pressable,
 	ScrollView,
 	Text,
@@ -21,6 +24,7 @@ import { queryClient, trpc } from "@/utils/trpc";
 const today = () => new Date().toISOString().slice(0, 10);
 type Mode = "group" | "person" | "payment" | "settings";
 type Detail = inferRouterOutputs<AppRouter>["groups"]["detail"];
+type SharedDetail = inferRouterOutputs<AppRouter>["sharedTrips"]["detail"];
 
 function Field({
 	label,
@@ -51,6 +55,203 @@ function Field({
 	);
 }
 
+function SharedTripDetail({ data }: { data: SharedDetail }) {
+	const [paying, setPaying] = useState(false);
+	const correction = useMutation(
+		trpc.sharedTrips.raiseCorrection.mutationOptions({
+			onSuccess: async () => {
+				Alert.alert("Sent", "The owner will review your attendance dispute.");
+				await queryClient.invalidateQueries();
+			},
+			onError: (error) => Alert.alert("Couldn’t send", error.message),
+		}),
+	);
+	const remaining = Number(data.owedPaise) - Number(data.paidPaise);
+	return (
+		<View className="mt-5">
+			<View
+				className="border-2 border-foreground bg-[#c8f55a] p-5"
+				style={hardShadow}
+			>
+				<Text className="font-black text-2xl text-black">{data.groupName}</Text>
+				<Text className="mt-1 text-black">
+					{data.vehicleName} · added as {data.personName}
+				</Text>
+				<View className="mt-4 border-black border-t-2 pt-4">
+					<Text className="font-black text-black text-xs">PAY TO</Text>
+					<Text className="font-black text-black text-lg">
+						{data.ownerName}
+					</Text>
+					<Text className="text-black">{data.ownerEmail}</Text>
+					<Text className="mt-3 font-black text-3xl text-black">
+						{formatRupees(Math.max(0, remaining))}
+					</Text>
+					<Text className="text-black text-sm">
+						remaining · {formatRupees(Number(data.pendingPaymentPaise))}{" "}
+						awaiting approval
+					</Text>
+				</View>
+				<Pressable
+					onPress={() => setPaying(true)}
+					className="mt-4 flex-row items-center justify-center gap-2 border-2 border-black bg-white p-3"
+				>
+					<Ionicons name="checkmark-circle-outline" size={19} color="#111" />
+					<Text className="font-black text-black">Mark payment sent</Text>
+				</Pressable>
+			</View>
+			<SectionTitle title="My attendance" />
+			{!data.journeys.length ? (
+				<Empty text="No attendance recorded for you." />
+			) : (
+				data.journeys.map((ride) => (
+					<View
+						key={ride.id}
+						className="mb-2 border-2 border-foreground bg-background p-4"
+					>
+						<View className="flex-row justify-between">
+							<Text className="font-black text-foreground">
+								{ride.journeyDate}
+							</Text>
+							<Text className="font-black text-foreground">
+								{formatRupees(ride.sharePaise)}
+							</Text>
+						</View>
+						<Text className="mt-1 text-muted">
+							{ride.direction === "two_way" ? "Return" : "One way"} ·{" "}
+							{ride.distanceKm} km
+						</Text>
+						{ride.correctionStatus ? (
+							<Text className="mt-2 font-bold text-foreground">
+								Dispute {ride.correctionStatus}
+							</Text>
+						) : (
+							<Pressable
+								onPress={() =>
+									Alert.alert(
+										"Raise dispute?",
+										"Tell the owner you did not join this ride.",
+										[
+											{ text: "Cancel", style: "cancel" },
+											{
+												text: "Send",
+												onPress: () =>
+													correction.mutate({
+														journeyId: ride.id,
+														note: "I did not join this journey.",
+													}),
+											},
+										],
+									)
+								}
+								className="mt-3 border-2 border-foreground bg-[#ff9fb2] p-3"
+							>
+								<Text className="text-center font-black text-black">
+									I wasn’t on this ride
+								</Text>
+							</Pressable>
+						)}
+					</View>
+				))
+			)}
+			{paying && (
+				<PaymentClaim groupId={data.groupId} close={() => setPaying(false)} />
+			)}
+		</View>
+	);
+}
+
+function PaymentClaim({
+	groupId,
+	close,
+}: {
+	groupId: string;
+	close: () => void;
+}) {
+	const [amount, setAmount] = useState("");
+	const [method, setMethod] = useState<
+		"upi" | "cash" | "bank_transfer" | "other"
+	>("upi");
+	const claim = useMutation(
+		trpc.sharedTrips.claimPayment.mutationOptions({
+			onSuccess: async () => {
+				await queryClient.invalidateQueries();
+				close();
+				Alert.alert(
+					"Sent for approval",
+					"The owner will confirm this payment.",
+				);
+			},
+			onError: (error) => Alert.alert("Couldn’t submit", error.message),
+		}),
+	);
+	return (
+		<Modal transparent animationType="slide" onRequestClose={close}>
+			<KeyboardAvoidingView
+				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				className="flex-1 justify-end bg-black/60"
+			>
+				<View className="border-2 border-black bg-[#f5f2e8] p-5">
+					<View className="flex-row items-center justify-between">
+						<Text className="font-black text-2xl text-black">Mark as paid</Text>
+						<Pressable
+							onPress={close}
+							className="h-10 w-10 items-center justify-center border-2 border-black bg-white"
+						>
+							<Ionicons name="close" size={21} />
+						</Pressable>
+					</View>
+					<Text className="mt-2 text-black">
+						The owner must approve before your balance changes.
+					</Text>
+					<View className="mt-5">
+						<Field
+							label="Amount (₹)"
+							value={amount}
+							onChange={setAmount}
+							keyboardType="decimal-pad"
+						/>
+					</View>
+					<Text className="mt-4 mb-2 font-black text-black text-sm">
+						Method
+					</Text>
+					<View className="flex-row flex-wrap gap-2">
+						{(["upi", "cash", "bank_transfer", "other"] as const).map(
+							(value) => (
+								<Pressable
+									key={value}
+									onPress={() => setMethod(value)}
+									className={`border-2 border-black px-3 py-2 ${method === value ? "bg-[#c8f55a]" : "bg-white"}`}
+								>
+									<Text className="font-black text-black">
+										{value.replace("_", " ")}
+									</Text>
+								</Pressable>
+							),
+						)}
+					</View>
+					<Pressable
+						disabled={!Number(amount) || claim.isPending}
+						onPress={() =>
+							claim.mutate({
+								groupId,
+								amountPaise: Math.round(Number(amount) * 100),
+								method,
+								paidOn: new Date().toISOString().slice(0, 10),
+							})
+						}
+						className="mt-5 border-2 border-black bg-[#c8f55a] p-4 disabled:opacity-40"
+						style={hardShadow}
+					>
+						<Text className="text-center font-black text-black">
+							{claim.isPending ? "Sending…" : "Send for approval"}
+						</Text>
+					</Pressable>
+				</View>
+			</KeyboardAvoidingView>
+		</Modal>
+	);
+}
+
 function Empty({ text }: { text: string }) {
 	return (
 		<View className="items-center border-2 border-foreground border-dashed p-8">
@@ -66,11 +267,22 @@ export default function Trips() {
 		...trpc.groups.list.queryOptions(),
 		enabled: Boolean(session),
 	});
+	const shared = useQuery({
+		...trpc.sharedTrips.list.queryOptions(),
+		enabled: Boolean(session),
+	});
 	const [selected, setSelected] = useState<string>();
-	const groupId = selected ?? groups.data?.[0]?.id;
+	const [sharedSelected, setSharedSelected] = useState<string>();
+	const groupId = sharedSelected
+		? undefined
+		: (selected ?? groups.data?.[0]?.id);
 	const detail = useQuery({
 		...trpc.groups.detail.queryOptions({ groupId: groupId ?? "" }),
 		enabled: Boolean(session && groupId),
+	});
+	const sharedDetail = useQuery({
+		...trpc.sharedTrips.detail.queryOptions({ groupId: sharedSelected ?? "" }),
+		enabled: Boolean(session && sharedSelected),
 	});
 	const [mode, setMode] = useState<Mode>();
 	const refresh = async () => {
@@ -117,6 +329,7 @@ export default function Trips() {
 					<Ionicons name="add" size={25} color="#111" />
 				</Pressable>
 			</View>
+			<SectionTitle title="My trips" />
 			{groups.isLoading ? (
 				<Text className="mt-8 text-muted">Loading your trips…</Text>
 			) : !groups.data?.length ? (
@@ -124,11 +337,14 @@ export default function Trips() {
 					<Empty text="Create your first trip here. You no longer need the website to get started." />
 				</View>
 			) : (
-				<View className="mt-5 flex-row flex-wrap gap-2">
+				<View className="flex-row flex-wrap gap-2">
 					{groups.data.map((item) => (
 						<Pressable
 							key={item.id}
-							onPress={() => setSelected(item.id)}
+							onPress={() => {
+								setSelected(item.id);
+								setSharedSelected(undefined);
+							}}
 							className={`border-2 border-foreground px-4 py-3 ${groupId === item.id ? "bg-[#8dc8ff]" : "bg-background"}`}
 						>
 							<Text className="font-black text-foreground">{item.name}</Text>
@@ -136,6 +352,28 @@ export default function Trips() {
 					))}
 				</View>
 			)}
+			<SectionTitle title="Trips added to" />
+			{!shared.isLoading && !shared.data?.length ? (
+				<Text className="text-muted">
+					No trips have been shared with your email.
+				</Text>
+			) : (
+				<View className="flex-row flex-wrap gap-2">
+					{shared.data?.map((item) => (
+						<Pressable
+							key={item.groupId}
+							onPress={() => setSharedSelected(item.groupId)}
+							className={`border-2 border-foreground px-4 py-3 ${sharedSelected === item.groupId ? "bg-[#c8f55a]" : "bg-background"}`}
+						>
+							<Text className="font-black text-foreground">
+								{item.groupName}
+							</Text>
+							<Text className="text-muted text-xs">Read only</Text>
+						</Pressable>
+					))}
+				</View>
+			)}
+			{sharedDetail.data && <SharedTripDetail data={sharedDetail.data} />}
 			{detail.isLoading && (
 				<Text className="mt-8 text-muted">Loading trip…</Text>
 			)}
@@ -167,16 +405,6 @@ export default function Trips() {
 							icon="cash-outline"
 							label="Payment"
 							onPress={() => setMode("payment")}
-						/>
-						<Action
-							icon="settings-outline"
-							label="Settings"
-							onPress={() => setMode("settings")}
-						/>
-						<Action
-							icon="add-circle-outline"
-							label="Add ride"
-							onPress={() => router.push("/(drawer)/(tabs)/two")}
 						/>
 					</View>
 					<SectionTitle title="Balances" />
@@ -223,6 +451,23 @@ export default function Trips() {
 								.filter((item) => item.status === "pending")
 								.map((item) => (
 									<Correction
+										key={item.id}
+										groupId={detail.data.group.id}
+										item={item}
+										onDone={refresh}
+									/>
+								))}
+						</>
+					)}
+					{detail.data.paymentClaims.some(
+						(item) => item.status === "pending",
+					) && (
+						<>
+							<SectionTitle title="Payment approvals" />
+							{detail.data.paymentClaims
+								.filter((item) => item.status === "pending")
+								.map((item) => (
+									<PaymentApproval
 										key={item.id}
 										groupId={detail.data.group.id}
 										item={item}
@@ -351,6 +596,62 @@ function Correction({
 	);
 }
 
+function PaymentApproval({
+	groupId,
+	item,
+	onDone,
+}: {
+	groupId: string;
+	item: {
+		id: string;
+		personName: string;
+		amountPaise: number;
+		method: string;
+		paidOn: string;
+	};
+	onDone: () => Promise<void>;
+}) {
+	const resolve = useMutation(
+		trpc.paymentClaims.resolve.mutationOptions({
+			onSuccess: onDone,
+			onError: (error) => Alert.alert("Couldn’t update", error.message),
+		}),
+	);
+	return (
+		<View className="mb-3 border-2 border-foreground bg-[#c8f55a] p-4">
+			<View className="flex-row justify-between">
+				<Text className="font-black text-black">
+					{item.personName} marked paid
+				</Text>
+				<Text className="font-black text-black">
+					{formatRupees(item.amountPaise)}
+				</Text>
+			</View>
+			<Text className="mt-1 text-black text-sm">
+				{item.method.replace("_", " ")} · {item.paidOn}
+			</Text>
+			<View className="mt-3 flex-row gap-2">
+				<Pressable
+					className="flex-1 border-2 border-black bg-white p-3"
+					onPress={() =>
+						resolve.mutate({ groupId, claimId: item.id, status: "approved" })
+					}
+				>
+					<Text className="text-center font-black text-black">Approve</Text>
+				</Pressable>
+				<Pressable
+					className="flex-1 border-2 border-black bg-[#ff9fb2] p-3"
+					onPress={() =>
+						resolve.mutate({ groupId, claimId: item.id, status: "rejected" })
+					}
+				>
+					<Text className="text-center font-black text-black">Reject</Text>
+				</Pressable>
+			</View>
+		</View>
+	);
+}
+
 function Editor({
 	mode,
 	groupId,
@@ -455,217 +756,224 @@ function Editor({
 			});
 	};
 	return (
-		<View
-			className="mt-6 border-2 border-foreground bg-[#f5f2e8] p-4"
-			style={hardShadow}
-		>
-			<View className="mb-4 flex-row items-center justify-between">
-				<Text className="font-black text-2xl text-black">
-					{mode === "group"
-						? "New trip"
-						: mode === "person"
-							? "Add partner"
-							: mode === "payment"
-								? "Record payment"
-								: "Trip settings"}
-				</Text>
-				<Pressable
-					onPress={close}
-					className="h-10 w-10 items-center justify-center border-2 border-black bg-white"
+		<Modal transparent animationType="slide" onRequestClose={close}>
+			<KeyboardAvoidingView
+				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				className="flex-1 justify-end bg-black/60"
+			>
+				<ScrollView
+					className="max-h-[90%] border-2 border-black bg-[#f5f2e8] p-4"
+					keyboardShouldPersistTaps="handled"
 				>
-					<Ionicons name="close" size={22} />
-				</Pressable>
-			</View>
-			<View className="gap-4">
-				{mode === "group" && (
-					<>
-						<Field
-							label="Trip name"
-							value={form.name ?? ""}
-							onChange={(v) => set("name", v)}
-							placeholder="Office carpool"
-						/>
-						<Field
-							label="Vehicle"
-							value={form.vehicle ?? ""}
-							onChange={(v) => set("vehicle", v)}
-							placeholder="Car name"
-						/>
-						<Field
-							label="Mileage (km/l)"
-							value={form.mileage ?? ""}
-							onChange={(v) => set("mileage", v)}
-							keyboardType="decimal-pad"
-						/>
-						<Field
-							label="One-way distance (km)"
-							value={form.distance ?? ""}
-							onChange={(v) => set("distance", v)}
-							keyboardType="decimal-pad"
-						/>
-						<Field
-							label="Tracking starts (YYYY-MM-DD)"
-							value={form.startDate}
-							onChange={(v) => set("startDate", v)}
-						/>
-					</>
-				)}
-				{mode === "person" && (
-					<>
-						<Field
-							label="Name"
-							value={form.name ?? ""}
-							onChange={(v) => set("name", v)}
-						/>
-						<Field
-							label="Google account email"
-							value={form.email ?? ""}
-							onChange={(v) => set("email", v)}
-							keyboardType="email-address"
-						/>
-						<Field
-							label="Phone (optional)"
-							value={form.phone ?? ""}
-							onChange={(v) => set("phone", v)}
-						/>
-						<Text className="text-black text-sm">
-							This email automatically receives read-only access after Google
-							sign-in.
+					<View className="mb-4 flex-row items-center justify-between">
+						<Text className="font-black text-2xl text-black">
+							{mode === "group"
+								? "New trip"
+								: mode === "person"
+									? "Add partner"
+									: mode === "payment"
+										? "Record payment"
+										: "Trip settings"}
 						</Text>
-					</>
-				)}
-				{mode === "payment" && (
-					<>
-						<Text className="font-black text-black text-sm">Partner</Text>
-						<View className="flex-row flex-wrap gap-2">
-							{data?.people.map((item) => (
-								<Pressable
-									key={item.id}
-									onPress={() => set("personId", item.id)}
-									className={`border-2 border-black px-3 py-2 ${form.personId === item.id ? "bg-[#8dc8ff]" : "bg-white"}`}
-								>
-									<Text className="font-bold text-black">{item.name}</Text>
-								</Pressable>
-							))}
-						</View>
-						<Field
-							label="Amount (₹)"
-							value={form.amount ?? ""}
-							onChange={(v) => set("amount", v)}
-							keyboardType="decimal-pad"
-						/>
-						<Text className="font-black text-black text-sm">Method</Text>
-						<View className="flex-row flex-wrap gap-2">
-							{["upi", "cash", "bank_transfer", "other"].map((value) => (
-								<Pressable
-									key={value}
-									onPress={() => set("method", value)}
-									className={`border-2 border-black px-3 py-2 ${form.method === value ? "bg-[#c8f55a]" : "bg-white"}`}
-								>
-									<Text className="font-bold text-black">
-										{value.replace("_", " ")}
-									</Text>
-								</Pressable>
-							))}
-						</View>
-						<Field
-							label="Paid on (YYYY-MM-DD)"
-							value={form.paidOn}
-							onChange={(v) => set("paidOn", v)}
-						/>
-						<Field
-							label="Note (optional)"
-							value={form.note ?? ""}
-							onChange={(v) => set("note", v)}
-						/>
-					</>
-				)}
-				{mode === "settings" && (
-					<>
-						<Field
-							label="Mileage (km/l)"
-							value={form.mileage}
-							onChange={(v) => set("mileage", v)}
-							keyboardType="decimal-pad"
-						/>
-						<Field
-							label="One-way distance (km)"
-							value={form.distance}
-							onChange={(v) => set("distance", v)}
-							keyboardType="decimal-pad"
-						/>
-						<Text className="font-black text-black text-sm">Fuel</Text>
-						<View className="flex-row gap-2">
-							{["petrol", "diesel"].map((value) => (
-								<Pressable
-									key={value}
-									onPress={() => set("fuelType", value)}
-									className={`flex-1 border-2 border-black p-3 ${form.fuelType === value ? "bg-[#c8f55a]" : "bg-white"}`}
-								>
-									<Text className="text-center font-black text-black">
-										{value}
-									</Text>
-								</Pressable>
-							))}
-						</View>
-						<Text className="font-black text-black text-sm">State</Text>
-						<ScrollView
-							horizontal
-							showsHorizontalScrollIndicator={false}
-							contentContainerClassName="gap-2"
+						<Pressable
+							onPress={close}
+							className="h-10 w-10 items-center justify-center border-2 border-black bg-white"
 						>
-							{states.data?.map((item) => (
-								<Pressable
-									key={item.id}
-									onPress={() => {
-										setStateChoice(item);
-										set("fuelState", item.name);
-										set("fuelDistrict", "");
-									}}
-									className={`border-2 border-black px-3 py-2 ${form.fuelState === item.name ? "bg-[#8dc8ff]" : "bg-white"}`}
+							<Ionicons name="close" size={22} />
+						</Pressable>
+					</View>
+					<View className="gap-4">
+						{mode === "group" && (
+							<>
+								<Field
+									label="Trip name"
+									value={form.name ?? ""}
+									onChange={(v) => set("name", v)}
+									placeholder="Office carpool"
+								/>
+								<Field
+									label="Vehicle"
+									value={form.vehicle ?? ""}
+									onChange={(v) => set("vehicle", v)}
+									placeholder="Car name"
+								/>
+								<Field
+									label="Mileage (km/l)"
+									value={form.mileage ?? ""}
+									onChange={(v) => set("mileage", v)}
+									keyboardType="decimal-pad"
+								/>
+								<Field
+									label="One-way distance (km)"
+									value={form.distance ?? ""}
+									onChange={(v) => set("distance", v)}
+									keyboardType="decimal-pad"
+								/>
+								<Field
+									label="Tracking starts (YYYY-MM-DD)"
+									value={form.startDate}
+									onChange={(v) => set("startDate", v)}
+								/>
+							</>
+						)}
+						{mode === "person" && (
+							<>
+								<Field
+									label="Name"
+									value={form.name ?? ""}
+									onChange={(v) => set("name", v)}
+								/>
+								<Field
+									label="Google account email"
+									value={form.email ?? ""}
+									onChange={(v) => set("email", v)}
+									keyboardType="email-address"
+								/>
+								<Field
+									label="Phone (optional)"
+									value={form.phone ?? ""}
+									onChange={(v) => set("phone", v)}
+								/>
+								<Text className="text-black text-sm">
+									This email automatically receives read-only access after
+									Google sign-in.
+								</Text>
+							</>
+						)}
+						{mode === "payment" && (
+							<>
+								<Text className="font-black text-black text-sm">Partner</Text>
+								<View className="flex-row flex-wrap gap-2">
+									{data?.people.map((item) => (
+										<Pressable
+											key={item.id}
+											onPress={() => set("personId", item.id)}
+											className={`border-2 border-black px-3 py-2 ${form.personId === item.id ? "bg-[#8dc8ff]" : "bg-white"}`}
+										>
+											<Text className="font-bold text-black">{item.name}</Text>
+										</Pressable>
+									))}
+								</View>
+								<Field
+									label="Amount (₹)"
+									value={form.amount ?? ""}
+									onChange={(v) => set("amount", v)}
+									keyboardType="decimal-pad"
+								/>
+								<Text className="font-black text-black text-sm">Method</Text>
+								<View className="flex-row flex-wrap gap-2">
+									{["upi", "cash", "bank_transfer", "other"].map((value) => (
+										<Pressable
+											key={value}
+											onPress={() => set("method", value)}
+											className={`border-2 border-black px-3 py-2 ${form.method === value ? "bg-[#c8f55a]" : "bg-white"}`}
+										>
+											<Text className="font-bold text-black">
+												{value.replace("_", " ")}
+											</Text>
+										</Pressable>
+									))}
+								</View>
+								<Field
+									label="Paid on (YYYY-MM-DD)"
+									value={form.paidOn}
+									onChange={(v) => set("paidOn", v)}
+								/>
+								<Field
+									label="Note (optional)"
+									value={form.note ?? ""}
+									onChange={(v) => set("note", v)}
+								/>
+							</>
+						)}
+						{mode === "settings" && (
+							<>
+								<Field
+									label="Mileage (km/l)"
+									value={form.mileage}
+									onChange={(v) => set("mileage", v)}
+									keyboardType="decimal-pad"
+								/>
+								<Field
+									label="One-way distance (km)"
+									value={form.distance}
+									onChange={(v) => set("distance", v)}
+									keyboardType="decimal-pad"
+								/>
+								<Text className="font-black text-black text-sm">Fuel</Text>
+								<View className="flex-row gap-2">
+									{["petrol", "diesel"].map((value) => (
+										<Pressable
+											key={value}
+											onPress={() => set("fuelType", value)}
+											className={`flex-1 border-2 border-black p-3 ${form.fuelType === value ? "bg-[#c8f55a]" : "bg-white"}`}
+										>
+											<Text className="text-center font-black text-black">
+												{value}
+											</Text>
+										</Pressable>
+									))}
+								</View>
+								<Text className="font-black text-black text-sm">State</Text>
+								<ScrollView
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									contentContainerClassName="gap-2"
 								>
-									<Text className="font-bold text-black text-xs">
-										{item.name}
-									</Text>
-								</Pressable>
-							))}
-						</ScrollView>
-						<Text className="font-black text-black text-sm">
-							District / city
-						</Text>
-						<ScrollView
-							horizontal
-							showsHorizontalScrollIndicator={false}
-							contentContainerClassName="gap-2"
+									{states.data?.map((item) => (
+										<Pressable
+											key={item.id}
+											onPress={() => {
+												setStateChoice(item);
+												set("fuelState", item.name);
+												set("fuelDistrict", "");
+											}}
+											className={`border-2 border-black px-3 py-2 ${form.fuelState === item.name ? "bg-[#8dc8ff]" : "bg-white"}`}
+										>
+											<Text className="font-bold text-black text-xs">
+												{item.name}
+											</Text>
+										</Pressable>
+									))}
+								</ScrollView>
+								<Text className="font-black text-black text-sm">
+									District / city
+								</Text>
+								<ScrollView
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									contentContainerClassName="gap-2"
+								>
+									{districts.data?.map((item) => (
+										<Pressable
+											key={item.id}
+											onPress={() => {
+												set("fuelDistrict", item.name);
+												set("fuelLocationId", String(item.id));
+											}}
+											className={`border-2 border-black px-3 py-2 ${form.fuelDistrict === item.name ? "bg-[#ff9fb2]" : "bg-white"}`}
+										>
+											<Text className="font-bold text-black text-xs">
+												{item.name}
+											</Text>
+										</Pressable>
+									))}
+								</ScrollView>
+							</>
+						)}
+						<Pressable
+							disabled={busy}
+							onPress={submit}
+							className="mt-2 border-2 border-black bg-[#c8f55a] p-4 disabled:opacity-40"
+							style={hardShadow}
 						>
-							{districts.data?.map((item) => (
-								<Pressable
-									key={item.id}
-									onPress={() => {
-										set("fuelDistrict", item.name);
-										set("fuelLocationId", String(item.id));
-									}}
-									className={`border-2 border-black px-3 py-2 ${form.fuelDistrict === item.name ? "bg-[#ff9fb2]" : "bg-white"}`}
-								>
-									<Text className="font-bold text-black text-xs">
-										{item.name}
-									</Text>
-								</Pressable>
-							))}
-						</ScrollView>
-					</>
-				)}
-				<Pressable
-					disabled={busy}
-					onPress={submit}
-					className="mt-2 border-2 border-black bg-[#c8f55a] p-4 disabled:opacity-40"
-					style={hardShadow}
-				>
-					<Text className="text-center font-black text-black">
-						{busy ? "Saving…" : "Save"}
-					</Text>
-				</Pressable>
-			</View>
-		</View>
+							<Text className="text-center font-black text-black">
+								{busy ? "Saving…" : "Save"}
+							</Text>
+						</Pressable>
+					</View>
+				</ScrollView>
+			</KeyboardAvoidingView>
+		</Modal>
 	);
 }

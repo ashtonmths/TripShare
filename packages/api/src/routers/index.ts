@@ -608,6 +608,7 @@ export const sharedTripRouter = router({
 		.query(async ({ ctx, input }) => {
 			const [membership] = await ctx.db
 				.select({
+					groupId: group.id,
 					personId: person.id,
 					personName: person.name,
 					groupName: group.name,
@@ -783,17 +784,15 @@ export const paymentClaimRouter = router({
 				});
 			return ctx.db.transaction(async (tx) => {
 				if (input.status === "approved")
-					await tx
-						.insert(payment)
-						.values({
-							id: crypto.randomUUID(),
-							groupId: claim.groupId,
-							personId: claim.personId,
-							amountPaise: claim.amountPaise,
-							method: claim.method,
-							paidOn: claim.paidOn,
-							note: claim.note,
-						});
+					await tx.insert(payment).values({
+						id: crypto.randomUUID(),
+						groupId: claim.groupId,
+						personId: claim.personId,
+						amountPaise: claim.amountPaise,
+						method: claim.method,
+						paidOn: claim.paidOn,
+						note: claim.note,
+					});
 				const [updated] = await tx
 					.update(paymentClaim)
 					.set({ status: input.status, resolvedAt: new Date() })
