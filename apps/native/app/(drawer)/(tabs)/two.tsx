@@ -1,20 +1,35 @@
 import { calculateFuelCost, formatRupees } from "@TripShare/shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { Container } from "@/components/container";
+import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
 
-export default function AddJourney() {
-	const today = new Date().toISOString().slice(0, 10);
-	const groups = useQuery(trpc.groups.list.queryOptions());
+const isoDay = (offset = 0) =>
+	new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+function Step({ number, title }: { number: number; title: string }) {
+	return (
+		<Text className="mt-6 mb-2 font-black text-foreground text-sm">
+			{number} · {title}
+		</Text>
+	);
+}
+
+export default function AddRide() {
+	const { data: session } = authClient.useSession();
+	const groups = useQuery({
+		...trpc.groups.list.queryOptions(),
+		enabled: Boolean(session),
+	});
 	const [groupId, setGroupId] = useState<string>();
 	const currentId = groupId ?? groups.data?.[0]?.id;
 	const detail = useQuery({
 		...trpc.groups.detail.queryOptions({ groupId: currentId ?? "" }),
-		enabled: Boolean(currentId),
+		enabled: Boolean(session && currentId),
 	});
 	const fuel = useQuery({
 		...trpc.fuel.current.queryOptions({ groupId: currentId ?? "" }),
@@ -22,12 +37,13 @@ export default function AddJourney() {
 		retry: false,
 	});
 	const [price, setPrice] = useState<number>();
-	const [fuelQuoteToken, setFuelQuoteToken] = useState<string>();
+	const [quote, setQuote] = useState<string>();
 	const [manual, setManual] = useState("");
+	const [showManual, setShowManual] = useState(false);
 	const [people, setPeople] = useState<string[]>([]);
 	const [twoWay, setTwoWay] = useState(false);
 	const [distance, setDistance] = useState("");
-	const [journeyDate, setJourneyDate] = useState(today);
+	const [journeyDate, setJourneyDate] = useState(isoDay());
 	const km = Number(
 		distance ||
 			Number(detail.data?.group.normalOneWayKm ?? 0) * (twoWay ? 2 : 1),
@@ -47,45 +63,107 @@ export default function AddJourney() {
 	const save = useMutation(
 		trpc.journeys.create.mutationOptions({
 			onSuccess: async () => {
-				Alert.alert("Journey saved", "Balances are updated.");
+				Alert.alert("Ride saved", "Everyone’s balance is up to date.");
 				setPeople([]);
 				setPrice(undefined);
+				setQuote(undefined);
+				setManual("");
 				await queryClient.invalidateQueries();
 			},
-			onError: (e) => Alert.alert("Couldn’t save", e.message),
+			onError: (error) => Alert.alert("Couldn’t save", error.message),
 		}),
 	);
+	const switchTrip = (id: string) => {
+		setGroupId(id);
+		setPeople([]);
+		setPrice(undefined);
+		setQuote(undefined);
+		setDistance("");
+	};
 	const fetchPrice = async () => {
 		const result = await fuel.refetch();
 		if (result.data) {
 			setPrice(result.data.pricePaise);
-			setFuelQuoteToken(result.data.quoteToken);
+			setQuote(result.data.quoteToken);
+			setManual("");
+			setShowManual(false);
 		}
 	};
+
+	if (!session)
+		return (
+			<Container className="px-5 pt-8">
+				<Text className="font-black text-3xl text-foreground">
+					Sign in first
+				</Text>
+				<Text className="mt-2 text-muted">
+					Sign in before recording a ride.
+				</Text>
+				<Pressable
+					onPress={() => router.replace("/(drawer)")}
+					className="mt-6 border-2 border-foreground bg-[#c8f55a] p-4"
+					style={hardShadow}
+				>
+					<Text className="text-center font-black text-black">
+						Go to sign in
+					</Text>
+				</Pressable>
+			</Container>
+		);
 	return (
-		<Container className="px-5 pt-5">
-			<Text className="font-bold text-3xl text-foreground">Add journey</Text>
-			<Text className="mt-2 text-muted">
-				A quick, exact split while the ride is fresh.
-			</Text>
-			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
-				Group
-			</Text>
-			<View className="flex-row flex-wrap gap-2">
-				{groups.data?.map((g) => (
+		<Container className="px-4 pt-4">
+			<Text className="font-black text-3xl text-foreground">Add ride</Text>
+			<Text className="mt-1 text-muted">Five quick choices, then save.</Text>
+			{groups.error && (
+				<View className="mt-5 border-2 border-foreground bg-[#ff9fb2] p-4">
+					<Text className="font-bold text-black">Couldn’t load trips</Text>
+					<Pressable onPress={() => groups.refetch()}>
+						<Text className="mt-2 font-black text-black underline">
+							Try again
+						</Text>
+					</Pressable>
+				</View>
+			)}
+			{!groups.isLoading && !groups.data?.length && (
+				<View className="mt-5 border-2 border-foreground border-dashed p-8">
+					<Text className="text-center text-muted">
+						Create a trip and add a partner first.
+					</Text>
 					<Pressable
-						key={g.id}
-						onPress={() => {
-							setGroupId(g.id);
-							setPeople([]);
-						}}
-						className={`border-2 border-foreground px-4 py-3 ${currentId === g.id ? "bg-[#c8f55a]" : "bg-background"}`}
+						onPress={() => router.replace("/(drawer)/(tabs)")}
+						className="mt-4 border-2 border-foreground bg-[#c8f55a] p-3"
 					>
-						<Text className="font-semibold text-foreground">{g.name}</Text>
+						<Text className="text-center font-black text-black">
+							Create trip
+						</Text>
+					</Pressable>
+				</View>
+			)}
+			<Step number={1} title="Trip" />
+			<View className="flex-row flex-wrap gap-2">
+				{groups.data?.map((item) => (
+					<Pressable
+						key={item.id}
+						onPress={() => switchTrip(item.id)}
+						className={`border-2 border-foreground px-4 py-3 ${currentId === item.id ? "bg-[#c8f55a]" : "bg-background"}`}
+					>
+						<Text className="font-black text-foreground">{item.name}</Text>
 					</Pressable>
 				))}
 			</View>
-			<Text className="mt-6 mb-2 font-black text-foreground text-sm">Date</Text>
+			<Step number={2} title="Date" />
+			<View className="mb-2 flex-row gap-2">
+				<Choice
+					label="Today"
+					selected={journeyDate === isoDay()}
+					onPress={() => setJourneyDate(isoDay())}
+				/>
+				<Choice
+					label="Yesterday"
+					selected={journeyDate === isoDay(-1)}
+					onPress={() => setJourneyDate(isoDay(-1))}
+				/>
+			</View>
 			<TextInput
 				value={journeyDate}
 				onChangeText={setJourneyDate}
@@ -93,27 +171,30 @@ export default function AddJourney() {
 				autoCapitalize="none"
 				className="border-2 border-foreground bg-background px-4 py-4 text-foreground"
 			/>
-			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
-				Direction
+			<Text className="mt-1 text-muted text-xs">
+				Use YYYY-MM-DD to enter any older date after the trip start date.
 			</Text>
+			<Step number={3} title="Route" />
 			<View className="flex-row gap-2">
-				{[false, true].map((value) => (
-					<Pressable
-						key={String(value)}
-						onPress={() => {
-							setTwoWay(value);
-							setDistance("");
-						}}
-						className={`flex-1 border-2 border-foreground p-4 ${twoWay === value ? "bg-[#8dc8ff]" : "bg-background"}`}
-					>
-						<Text className="text-center font-semibold text-foreground">
-							{value ? "Two way" : "One way"}
-						</Text>
-					</Pressable>
-				))}
+				<Choice
+					label="One way"
+					selected={!twoWay}
+					onPress={() => {
+						setTwoWay(false);
+						setDistance("");
+					}}
+				/>
+				<Choice
+					label="Return"
+					selected={twoWay}
+					onPress={() => {
+						setTwoWay(true);
+						setDistance("");
+					}}
+				/>
 			</View>
-			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
-				Distance (km)
+			<Text className="mt-4 mb-2 font-bold text-foreground text-xs">
+				DISTANCE (KM)
 			</Text>
 			<TextInput
 				value={distance || String(km || "")}
@@ -121,73 +202,85 @@ export default function AddJourney() {
 				keyboardType="decimal-pad"
 				className="border-2 border-foreground bg-background px-4 py-4 text-foreground"
 			/>
-			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
-				Who joined?
-			</Text>
+			<Step number={4} title="Who joined?" />
 			<View className="flex-row flex-wrap gap-2">
 				{detail.data?.people
-					.filter((p) => p.isActive)
-					.map((p) => (
+					.filter((item) => item.isActive)
+					.map((item) => (
 						<Pressable
-							key={p.id}
+							key={item.id}
 							onPress={() =>
 								setPeople((old) =>
-									old.includes(p.id)
-										? old.filter((id) => id !== p.id)
-										: [...old, p.id],
+									old.includes(item.id)
+										? old.filter((id) => id !== item.id)
+										: [...old, item.id],
 								)
 							}
-							className={`flex-row items-center border-2 border-foreground px-4 py-3 ${people.includes(p.id) ? "bg-[#c8f55a]" : "bg-background"}`}
+							className={`flex-row items-center border-2 border-foreground px-4 py-3 ${people.includes(item.id) ? "bg-[#c8f55a]" : "bg-background"}`}
 						>
-							{people.includes(p.id) && (
-								<Ionicons name="checkmark" size={16} color="#176b52" />
+							{people.includes(item.id) && (
+								<Ionicons name="checkmark" size={16} />
 							)}
-							<Text className="font-semibold text-foreground"> {p.name}</Text>
+							<Text className="font-black text-foreground"> {item.name}</Text>
 						</Pressable>
 					))}
 			</View>
+			{detail.data && !detail.data.people.length && (
+				<Text className="text-muted">
+					Add a partner from the Trips tab first.
+				</Text>
+			)}
+			<Step number={5} title="Fuel price" />
 			<View
-				className="mt-6 border-2 border-foreground bg-[#8dc8ff] p-4"
+				className="border-2 border-foreground bg-[#8dc8ff] p-4"
 				style={hardShadow}
 			>
 				<View className="flex-row items-center">
-					<Ionicons name="flame-outline" size={22} />
+					<Ionicons name="flame-outline" size={22} color="#111" />
 					<View className="ml-3 flex-1">
-						<Text className="font-bold text-foreground">
-							{detail.data?.group.fuelDistrict} {detail.data?.group.fuelType}{" "}
-							price
+						<Text className="font-black text-black">
+							{detail.data?.group.fuelDistrict || "Selected city"}{" "}
+							{detail.data?.group.fuelType || "fuel"}
 						</Text>
-						<Text className="text-muted text-sm">
+						<Text className="text-black text-sm">
 							{price
 								? `${formatRupees(price)} / litre`
 								: "Fetch the current price"}
 						</Text>
 					</View>
 					<Pressable
+						disabled={!currentId || fuel.isFetching}
 						onPress={fetchPrice}
-						className="border-2 border-black bg-[#c8f55a] px-3 py-2"
+						className="border-2 border-black bg-[#c8f55a] px-3 py-2 disabled:opacity-40"
 					>
-						<Text className="font-black text-black">Fetch</Text>
+						<Text className="font-black text-black">
+							{fuel.isFetching ? "Loading…" : "Fetch"}
+						</Text>
 					</Pressable>
 				</View>
 				{fuel.error && (
-					<>
-						<Text className="mt-3 text-danger text-sm">
-							{fuel.error.message}
-						</Text>
-						<TextInput
-							placeholder="Manual ₹ / litre"
-							placeholderTextColor="#888"
-							value={manual}
-							onChangeText={(v) => {
-								setManual(v);
-								setPrice(Math.round(Number(v) * 100));
-								setFuelQuoteToken(undefined);
-							}}
-							keyboardType="decimal-pad"
-							className="mt-3 border-2 border-black bg-white px-4 py-3 text-black"
-						/>
-					</>
+					<Text className="mt-3 text-red-800 text-sm">
+						{fuel.error.message}
+					</Text>
+				)}
+				<Pressable onPress={() => setShowManual((value) => !value)}>
+					<Text className="mt-3 font-black text-black underline">
+						{showManual ? "Hide manual entry" : "Enter price manually"}
+					</Text>
+				</Pressable>
+				{showManual && (
+					<TextInput
+						placeholder="Manual ₹ / litre"
+						placeholderTextColor="#666"
+						value={manual}
+						onChangeText={(value) => {
+							setManual(value);
+							setPrice(Math.round(Number(value) * 100));
+							setQuote(undefined);
+						}}
+						keyboardType="decimal-pad"
+						className="mt-3 border-2 border-black bg-white px-4 py-3 text-black"
+					/>
 				)}
 			</View>
 			{cost && (
@@ -196,14 +289,14 @@ export default function AddJourney() {
 					style={hardShadow}
 				>
 					<View className="flex-1">
-						<Text className="text-muted text-sm">TOTAL</Text>
-						<Text className="font-bold text-2xl text-foreground">
+						<Text className="font-black text-black text-xs">TOTAL</Text>
+						<Text className="font-black text-2xl text-black">
 							{formatRupees(cost.fuelCostPaise)}
 						</Text>
 					</View>
 					<View className="flex-1">
-						<Text className="text-muted text-sm">EACH</Text>
-						<Text className="font-bold text-2xl text-foreground">
+						<Text className="font-black text-black text-xs">PER PERSON</Text>
+						<Text className="font-black text-2xl text-black">
 							{formatRupees(cost.sharePaise)}
 						</Text>
 					</View>
@@ -221,17 +314,36 @@ export default function AddJourney() {
 						distanceKm: km,
 						participantIds: people,
 						petrolPricePaise: price,
-						petrolPriceSource: fuelQuoteToken ? "mypetrolprice" : "manual",
-						fuelQuoteToken,
+						petrolPriceSource: quote ? "mypetrolprice" : "manual",
+						fuelQuoteToken: quote,
 					})
 				}
 				className="mt-5 mb-8 border-2 border-foreground bg-[#c8f55a] p-5 disabled:opacity-40"
 				style={hardShadow}
 			>
 				<Text className="text-center font-black text-black text-lg">
-					{save.isPending ? "Saving…" : "Save journey"}
+					{save.isPending ? "Saving…" : "Save ride"}
 				</Text>
 			</Pressable>
 		</Container>
+	);
+}
+
+function Choice({
+	label,
+	selected,
+	onPress,
+}: {
+	label: string;
+	selected: boolean;
+	onPress: () => void;
+}) {
+	return (
+		<Pressable
+			onPress={onPress}
+			className={`flex-1 border-2 border-foreground p-4 ${selected ? "bg-[#8dc8ff]" : "bg-background"}`}
+		>
+			<Text className="text-center font-black text-foreground">{label}</Text>
+		</Pressable>
 	);
 }
