@@ -1,10 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { Link } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { useThemeColor } from "heroui-native";
 import { useCallback } from "react";
-import { Pressable, Text } from "react-native";
+import { Text } from "react-native";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -20,11 +19,14 @@ function DrawerLayout() {
 				headerTintColor: themeColorForeground,
 				headerStyle: { backgroundColor: themeColorBackground },
 				headerTitleStyle: {
-					fontWeight: "600",
+					fontWeight: "900",
 					color: themeColorForeground,
 				},
 				headerRight: renderThemeToggle,
 				drawerStyle: { backgroundColor: themeColorBackground },
+				drawerActiveTintColor: themeColorForeground,
+				drawerInactiveTintColor: themeColorForeground,
+				drawerActiveBackgroundColor: "#c8f55a",
 			}}
 		>
 			<Drawer.Screen
@@ -61,17 +63,7 @@ function DrawerLayout() {
 							color={focused ? color : themeColorForeground}
 						/>
 					),
-					headerRight: () => (
-						<Link href="/modal" asChild>
-							<Pressable className="mr-4">
-								<Ionicons
-									name="add-outline"
-									size={24}
-									color={themeColorForeground}
-								/>
-							</Pressable>
-						</Link>
-					),
+					headerRight: renderThemeToggle,
 				}}
 			/>
 		</Drawer>

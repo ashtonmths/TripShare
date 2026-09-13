@@ -10,15 +10,22 @@ export default function TabLayout() {
 		<Tabs
 			screenOptions={{
 				headerShown: false,
-				headerStyle: {
-					backgroundColor: themeColorBackground,
-				},
-				headerTintColor: themeColorForeground,
-				headerTitleStyle: {
-					color: themeColorForeground,
-					fontWeight: "600",
-				},
+				tabBarActiveTintColor: themeColorForeground,
+				tabBarInactiveTintColor: themeColorForeground,
+				tabBarLabelStyle: { fontSize: 12, fontWeight: "800", marginTop: 2 },
+				tabBarItemStyle: { paddingVertical: 6 },
 				tabBarStyle: {
+					backgroundColor: themeColorBackground,
+					borderTopColor: themeColorForeground,
+					borderTopWidth: 2,
+					height: 68,
+					paddingBottom: 7,
+				},
+				tabBarActiveBackgroundColor: "#c8f55a",
+				tabBarIconStyle: { marginBottom: 0 },
+				tabBarLabelPosition: "below-icon",
+				tabBarHideOnKeyboard: true,
+				sceneStyle: {
 					backgroundColor: themeColorBackground,
 				},
 			}}
@@ -26,7 +33,7 @@ export default function TabLayout() {
 			<Tabs.Screen
 				name="index"
 				options={{
-					title: "Groups",
+					title: "Trips",
 					tabBarIcon: ({ color, size }) => (
 						<Ionicons name="people" size={size} color={color} />
 					),
@@ -35,7 +42,7 @@ export default function TabLayout() {
 			<Tabs.Screen
 				name="two"
 				options={{
-					title: "Add journey",
+					title: "Add ride",
 					tabBarIcon: ({ color, size }) => (
 						<Ionicons name="add-circle" size={size} color={color} />
 					),
