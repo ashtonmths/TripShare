@@ -1,9 +1,17 @@
 import { calculateFuelCost, formatRupees } from "@TripShare/shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import {
+	Alert,
+	Platform,
+	Pressable,
+	Text,
+	TextInput,
+	View,
+} from "react-native";
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
@@ -11,6 +19,8 @@ import { queryClient, trpc } from "@/utils/trpc";
 
 const isoDay = (offset = 0) =>
 	new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+const dateToIso = (date: Date) =>
+	`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 function Step({ number, title }: { number: number; title: string }) {
 	return (
 		<Text className="mt-6 mb-2 font-black text-foreground text-sm">
@@ -44,6 +54,7 @@ export default function AddRide() {
 	const [twoWay, setTwoWay] = useState(false);
 	const [distance, setDistance] = useState("");
 	const [journeyDate, setJourneyDate] = useState(isoDay());
+	const [showDatePicker, setShowDatePicker] = useState(false);
 	const km = Number(
 		distance ||
 			Number(detail.data?.group.normalOneWayKm ?? 0) * (twoWay ? 2 : 1),
@@ -164,16 +175,46 @@ export default function AddRide() {
 					onPress={() => setJourneyDate(isoDay(-1))}
 				/>
 			</View>
-			<TextInput
-				value={journeyDate}
-				onChangeText={setJourneyDate}
-				placeholder="YYYY-MM-DD"
-				autoCapitalize="none"
-				className="border-2 border-foreground bg-background px-4 py-4 text-foreground"
-			/>
-			<Text className="mt-1 text-muted text-xs">
-				Use YYYY-MM-DD to enter any older date after the trip start date.
-			</Text>
+			<Pressable
+				onPress={() => setShowDatePicker(true)}
+				className="flex-row items-center justify-between border-2 border-foreground bg-background px-4 py-4"
+			>
+				<Text className="font-black text-foreground">
+					{new Date(`${journeyDate}T12:00:00`).toLocaleDateString(undefined, {
+						day: "numeric",
+						month: "long",
+						year: "numeric",
+					})}
+				</Text>
+				<Ionicons name="calendar-outline" size={21} />
+			</Pressable>
+			{showDatePicker && (
+				<View className="mt-2 border-2 border-foreground bg-background p-2">
+					<DateTimePicker
+						value={new Date(`${journeyDate}T12:00:00`)}
+						mode="date"
+						display={Platform.OS === "ios" ? "inline" : "default"}
+						minimumDate={
+							detail.data?.group.startDate
+								? new Date(`${detail.data.group.startDate}T12:00:00`)
+								: undefined
+						}
+						maximumDate={new Date()}
+						onChange={(_, date) => {
+							if (Platform.OS === "android") setShowDatePicker(false);
+							if (date) setJourneyDate(dateToIso(date));
+						}}
+					/>
+					{Platform.OS === "ios" && (
+						<Pressable
+							onPress={() => setShowDatePicker(false)}
+							className="border-2 border-black bg-[#c8f55a] p-3"
+						>
+							<Text className="text-center font-black text-black">Done</Text>
+						</Pressable>
+					)}
+				</View>
+			)}
 			<Step number={3} title="Route" />
 			<View className="flex-row gap-2">
 				<Choice
