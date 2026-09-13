@@ -1,5 +1,5 @@
 import { formatRupees } from "@TripShare/shared";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";

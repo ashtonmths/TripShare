@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Button, Surface, useThemeColor } from "heroui-native";
 import { Text, View } from "react-native";

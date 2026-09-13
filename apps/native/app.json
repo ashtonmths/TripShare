@@ -2,10 +2,10 @@
 	"expo": {
 		"name": "TripShare",
 		"slug": "tripshare",
-		"version": "1.0.0",
+		"version": "1.0.1",
 		"orientation": "portrait",
 		"icon": "./assets/images/icon.png",
-		"scheme": "TripShare",
+		"scheme": "tripshare",
 		"userInterfaceStyle": "automatic",
 		"ios": {
 			"supportsTablet": true,
@@ -35,6 +35,17 @@
 					"backgroundColor": "#f6f4ed",
 					"dark": {
 						"backgroundColor": "#111714"
+					}
+				}
+			],
+			[
+				"expo-build-properties",
+				{
+					"android": {
+						"buildArchs": ["arm64-v8a"],
+						"enableBundleCompression": true,
+						"enableMinifyInReleaseBuilds": true,
+						"enableShrinkResourcesInReleaseBuilds": true
 					}
 				}
 			]
