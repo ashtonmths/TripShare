@@ -75,6 +75,7 @@ function NativeTabBar({ state, navigation }: NativeTabBarProps) {
 
 export default function TabLayout() {
 	const themeColorBackground = useThemeColor("background");
+	const insets = useSafeAreaInsets();
 	const { data: session, isPending } = authClient.useSession();
 	if (isPending) return <AppLoading />;
 	if (!session) return <Redirect href="/(drawer)" />;
@@ -87,6 +88,7 @@ export default function TabLayout() {
 				tabBarHideOnKeyboard: true,
 				sceneStyle: {
 					backgroundColor: themeColorBackground,
+					paddingTop: insets.top,
 				},
 			}}
 		>
