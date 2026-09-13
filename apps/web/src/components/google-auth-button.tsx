@@ -19,7 +19,10 @@ export function GoogleAuthButton() {
 					callbackURL: "/dashboard",
 				});
 				if (result.error) {
-					toast.error(result.error.message ?? "Google sign-in could not start");
+					toast.error(
+						result.error.message ??
+							"Google OAuth is unavailable. Check the production OAuth environment variables.",
+					);
 					setPending(false);
 				}
 			}}

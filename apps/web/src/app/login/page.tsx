@@ -5,7 +5,7 @@ export default function LoginPage() {
 		<main className="auth-page">
 			<div className="auth-side">
 				<span className="auth-badge">Private by default</span>
-				<h2>One ledger. Clear costs. No awkward chasing.</h2>
+				<h2>Clear rides. Fair costs.</h2>
 				<p>
 					Manage your carpool or securely view trips shared with your email.
 				</p>
@@ -14,7 +14,7 @@ export default function LoginPage() {
 				<p className="auth-kicker">Secure access</p>
 				<h1>Continue to TripShare</h1>
 				<p className="auth-intro">
-					Sign in with Google. No passwords are stored by TripShare.
+					Owners and trip partners use the same secure Google sign-in.
 				</p>
 				<GoogleAuthButton />
 			</div>

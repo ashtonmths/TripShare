@@ -605,16 +605,17 @@ legend {
 }
 
 .auth-page {
-	width: min(1060px, calc(100% - 32px));
-	margin: 48px auto;
+	width: min(920px, calc(100% - 32px));
+	margin: 40px auto;
+	align-self: start;
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 0.9fr 1.1fr;
 	border: var(--hard-border);
 	box-shadow: 8px 8px 0 var(--ink);
 	background: var(--background);
 }
 .auth-side {
-	padding: 52px;
+	padding: 38px;
 	background: var(--blue);
 	color: #171717;
 	border-right: var(--hard-border);
@@ -623,7 +624,7 @@ legend {
 	justify-content: center;
 }
 .auth-side h2 {
-	font-size: clamp(34px, 5vw, 58px);
+	font-size: clamp(32px, 4vw, 46px);
 	line-height: 1;
 	font-weight: 950;
 	margin: 28px 0 20px;
@@ -641,7 +642,10 @@ legend {
 	box-shadow: 3px 3px 0 #171717;
 }
 .auth-card {
-	padding: 46px;
+	padding: 38px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
 }
 .auth-card h1 {
 	font-size: 34px;
