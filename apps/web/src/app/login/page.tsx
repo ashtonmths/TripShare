@@ -1,28 +1,23 @@
-"use client";
-
-import { useState } from "react";
-
-import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 
 export default function LoginPage() {
-	const [showSignIn, setShowSignIn] = useState(false);
-
 	return (
 		<main className="auth-page">
 			<div className="auth-side">
 				<span className="auth-badge">Private by default</span>
-				<h2>One owner. Every ride. Nothing awkward.</h2>
+				<h2>One ledger. Clear costs. No awkward chasing.</h2>
 				<p>
-					Keep fuel splits factual, payments visible, and your passengers out of
-					another app signup.
+					Manage your carpool or securely view trips shared with your email.
 				</p>
 			</div>
-			{showSignIn ? (
-				<SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-			) : (
-				<SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-			)}
+			<div className="auth-card">
+				<p className="auth-kicker">Secure access</p>
+				<h1>Continue to TripShare</h1>
+				<p className="auth-intro">
+					Sign in with Google. No passwords are stored by TripShare.
+				</p>
+				<GoogleAuthButton />
+			</div>
 		</main>
 	);
 }

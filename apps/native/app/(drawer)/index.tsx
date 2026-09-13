@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
-import { SignUp } from "@/components/sign-up";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { trpc } from "@/utils/trpc";
@@ -27,11 +26,10 @@ export default function Home() {
 						Welcome to TripShare
 					</Text>
 					<Text className="mt-3 text-base text-muted leading-6">
-						Sign in as the vehicle owner. Your passengers never need accounts.
+						Sign in with Google to manage or view trips linked to your email.
 					</Text>
 				</View>
 				<SignIn />
-				<SignUp />
 			</Container>
 		);
 	if (dashboard.isLoading)

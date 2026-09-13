@@ -19,20 +19,11 @@ export function createAuth(env: AuthConfig, database: Database) {
 			schema,
 		}),
 		trustedOrigins: [env.BETTER_AUTH_URL, "tripshare://"],
-		emailAndPassword: {
-			enabled: true,
-			minPasswordLength: 10,
-			maxPasswordLength: 128,
-		},
+		emailAndPassword: { enabled: false },
 		rateLimit: {
 			enabled: true,
 			window: 60,
 			max: 60,
-			customRules: {
-				"/sign-in/email": { window: 60, max: 5 },
-				"/sign-up/email": { window: 60, max: 3 },
-				"/forget-password": { window: 300, max: 3 },
-			},
 		},
 		socialProviders:
 			env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
