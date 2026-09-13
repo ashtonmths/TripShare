@@ -8,6 +8,13 @@
 			"when": 1789235944926,
 			"tag": "0000_volatile_ultimo",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1789290000000,
+			"tag": "0001_shared_trip_membership",
+			"breakpoints": true
 		}
 	]
 }

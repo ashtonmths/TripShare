@@ -1,5 +1,6 @@
 import type { Database } from "@TripShare/db";
 import {
+	correctionRequest,
 	group,
 	journey,
 	journeyParticipant,
@@ -25,6 +26,50 @@ const positive = z.number().finite().positive();
 const MAX_PETROL_PRICE_PAISE = 50_000;
 const MAX_PAYMENT_PAISE = 100_000_000;
 const MAX_PARTICIPANTS = 100;
+const email = z.string().trim().toLowerCase().email().max(254);
+const fuelTypeSchema = z.enum(["petrol", "diesel"]);
+
+function stripHtml(value: string) {
+	return value
+		.replace(/<script[\s\S]*?<\/script>/gi, " ")
+		.replace(/<style[\s\S]*?<\/style>/gi, " ")
+		.replace(/<[^>]+>/g, " ")
+		.replace(/&nbsp;|&#160;/gi, " ")
+		.replace(/&#8377;|&#x20b9;/gi, "₹")
+		.replace(/&amp;/gi, "&")
+		.replace(/\s+/g, " ");
+}
+
+async function fetchFuelPage(path: string) {
+	const response = await fetch(`https://www.mypetrolprice.com${path}`, {
+		headers: {
+			Accept: "text/html,application/xhtml+xml",
+			"User-Agent":
+				"Mozilla/5.0 (compatible; TripShare/1.0; +https://tripshare.ashtonmths.dev)",
+		},
+		cache: "no-store",
+		signal: AbortSignal.timeout(8000),
+	});
+	if (!response.ok) throw new Error(`price site returned ${response.status}`);
+	return response.text();
+}
+
+function parseLinks(html: string, pattern: RegExp) {
+	const result: { id: number; name: string; slug: string }[] = [];
+	for (const match of html.matchAll(pattern)) {
+		const id = Number(match[1]);
+		const slug = match[2] ?? "";
+		const name = stripHtml(match[3] ?? "").trim();
+		if (
+			Number.isInteger(id) &&
+			id > 0 &&
+			name &&
+			!result.some((x) => x.id === id)
+		)
+			result.push({ id, name, slug });
+	}
+	return result.sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function encodeBase64Url(value: string | ArrayBuffer) {
 	const bytes =
@@ -50,10 +95,16 @@ async function signFuelQuote(secret: string, payload: string) {
 async function createFuelQuote(
 	secret: string,
 	userId: string,
+	groupId: string,
 	pricePaise: number,
 ) {
 	const payload = encodeBase64Url(
-		JSON.stringify({ userId, pricePaise, expiresAt: Date.now() + 10 * 60_000 }),
+		JSON.stringify({
+			userId,
+			groupId,
+			pricePaise,
+			expiresAt: Date.now() + 10 * 60_000,
+		}),
 	);
 	return `${payload}.${await signFuelQuote(secret, payload)}`;
 }
@@ -62,6 +113,7 @@ async function verifyFuelQuote(
 	secret: string,
 	token: string,
 	userId: string,
+	groupId: string,
 	pricePaise: number,
 ) {
 	const [payload, signature, extra] = token.split(".");
@@ -77,6 +129,7 @@ async function verifyFuelQuote(
 		);
 		return (
 			value.userId === userId &&
+			value.groupId === groupId &&
 			value.pricePaise === pricePaise &&
 			typeof value.expiresAt === "number" &&
 			value.expiresAt >= Date.now()
@@ -100,31 +153,6 @@ async function ownedGroup(
 	return record;
 }
 
-function extractPetrolPrice(payload: unknown): number | null {
-	const candidates: number[] = [];
-	const visit = (value: unknown, key = "") => {
-		if (
-			(typeof value === "number" || typeof value === "string") &&
-			/petrol|price|rate/i.test(key)
-		) {
-			const candidate =
-				typeof value === "number"
-					? value
-					: Number(value.replace(/[^0-9.]/g, ""));
-			if (Number.isFinite(candidate)) candidates.push(candidate);
-		} else if (Array.isArray(value))
-			value.forEach((item) => {
-				visit(item, key);
-			});
-		else if (value && typeof value === "object")
-			Object.entries(value).forEach(([childKey, child]) => {
-				visit(child, childKey);
-			});
-	};
-	visit(payload);
-	return candidates.find((value) => value > 50 && value < 300) ?? null;
-}
-
 export const groupRouter = router({
 	list: protectedProcedure.query(({ ctx }) =>
 		ctx.db
@@ -141,6 +169,10 @@ export const groupRouter = router({
 				mileageKmpl: positive.max(100),
 				normalOneWayKm: positive.max(2000),
 				startDate: isoDateSchema,
+				fuelType: fuelTypeSchema.default("petrol"),
+				fuelState: z.string().trim().min(2).max(80).default("Karnataka"),
+				fuelDistrict: z.string().trim().min(2).max(80).default("Udupi"),
+				fuelLocationId: z.number().int().positive().max(100_000).default(383),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -154,9 +186,47 @@ export const groupRouter = router({
 					mileageKmpl: String(input.mileageKmpl),
 					normalOneWayKm: String(input.normalOneWayKm),
 					startDate: input.startDate,
+					fuelType: input.fuelType,
+					fuelState: input.fuelState,
+					fuelDistrict: input.fuelDistrict,
+					fuelLocationId: input.fuelLocationId,
 				})
 				.returning();
 			return created;
+		}),
+	updateSettings: protectedProcedure
+		.input(
+			z.object({
+				groupId: id,
+				mileageKmpl: positive.max(100),
+				normalOneWayKm: positive.max(2000),
+				fuelType: fuelTypeSchema,
+				fuelState: z.string().trim().min(2).max(80),
+				fuelDistrict: z.string().trim().min(2).max(80),
+				fuelLocationId: z.number().int().positive().max(100_000),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ownedGroup(ctx, input.groupId);
+			const [updated] = await ctx.db
+				.update(group)
+				.set({
+					mileageKmpl: String(input.mileageKmpl),
+					normalOneWayKm: String(input.normalOneWayKm),
+					fuelType: input.fuelType,
+					fuelState: input.fuelState,
+					fuelDistrict: input.fuelDistrict,
+					fuelLocationId: input.fuelLocationId,
+					updatedAt: new Date(),
+				})
+				.where(
+					and(
+						eq(group.id, input.groupId),
+						eq(group.ownerId, ctx.session.user.id),
+					),
+				)
+				.returning();
+			return updated;
 		}),
 	detail: protectedProcedure
 		.input(z.object({ groupId: id }))
@@ -179,6 +249,20 @@ export const groupRouter = router({
 					.where(eq(payment.groupId, record.id))
 					.orderBy(desc(payment.paidOn), desc(payment.createdAt)),
 			]);
+			const corrections = await ctx.db
+				.select({
+					id: correctionRequest.id,
+					journeyId: correctionRequest.journeyId,
+					personId: correctionRequest.personId,
+					personName: person.name,
+					note: correctionRequest.note,
+					status: correctionRequest.status,
+					createdAt: correctionRequest.createdAt,
+				})
+				.from(correctionRequest)
+				.innerJoin(person, eq(person.id, correctionRequest.personId))
+				.where(eq(person.groupId, record.id))
+				.orderBy(desc(correctionRequest.createdAt));
 			const journeyIds = journeys.map((item) => item.id);
 			const participants = journeyIds.length
 				? await ctx.db
@@ -209,6 +293,7 @@ export const groupRouter = router({
 				})),
 				payments,
 				balances: calculateBalances(participants, payments),
+				corrections,
 			};
 		}),
 });
@@ -220,6 +305,7 @@ export const peopleRouter = router({
 				groupId: id,
 				name: z.string().trim().min(2).max(80),
 				phone: z.string().trim().max(30).optional(),
+				email,
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
@@ -231,6 +317,7 @@ export const peopleRouter = router({
 					groupId: input.groupId,
 					name: input.name,
 					phone: input.phone || null,
+					email: input.email,
 				})
 				.returning();
 			return created;
@@ -253,47 +340,87 @@ export const peopleRouter = router({
 });
 
 export const fuelRouter = router({
-	current: protectedProcedure.query(async ({ ctx }) => {
-		if (!ctx.indianApiKey)
-			throw new TRPCError({
-				code: "PRECONDITION_FAILED",
-				message:
-					"IndianAPI key is not configured. Enter the petrol price manually.",
-			});
-		const url = new URL("https://fuel.indianapi.in/live_fuel_price");
-		url.searchParams.set("location", "Udupi");
-		url.searchParams.set("city", "Udupi");
-		url.searchParams.set("state", "Karnataka");
-		url.searchParams.set("fuel_type", "petrol");
+	states: protectedProcedure.query(async () => {
 		try {
-			const response = await fetch(url, {
-				headers: { "x-api-key": ctx.indianApiKey },
-				cache: "no-store",
-				signal: AbortSignal.timeout(8000),
-			});
-			if (!response.ok)
-				throw new Error(`IndianAPI returned ${response.status}`);
-			const priceRupees = extractPetrolPrice(await response.json());
-			if (!priceRupees)
-				throw new Error("No petrol price was present in the response");
-			return {
-				pricePaise: Math.round(priceRupees * 100),
-				location: "Udupi, Karnataka" as const,
-				source: "indianapi" as const,
-				fetchedAt: new Date().toISOString(),
-				quoteToken: await createFuelQuote(
-					ctx.fuelQuoteSecret,
-					ctx.session.user.id,
-					Math.round(priceRupees * 100),
-				),
-			};
+			const html = await fetchFuelPage("/");
+			return parseLinks(
+				html,
+				/href=["'](?:https:\/\/www\.mypetrolprice\.com)?\/(\d+)\/Fuel-Prices-in-([^"']+)["'][^>]*>([^<]+)<\/a>/gi,
+			);
 		} catch (error) {
 			throw new TRPCError({
 				code: "BAD_GATEWAY",
-				message: `Could not fetch Udupi petrol price: ${error instanceof Error ? error.message : "Unknown error"}. Enter it manually.`,
+				message: `Could not load states: ${error instanceof Error ? error.message : "Unknown error"}`,
 			});
 		}
 	}),
+	districts: protectedProcedure
+		.input(
+			z.object({
+				stateId: z.number().int().min(1).max(100),
+				stateSlug: z
+					.string()
+					.regex(/^[A-Za-z0-9_-]+$/)
+					.max(100),
+			}),
+		)
+		.query(async ({ input }) => {
+			try {
+				const html = await fetchFuelPage(
+					`/${input.stateId}/Fuel-Prices-in-${input.stateSlug}`,
+				);
+				return parseLinks(
+					html,
+					/href=["'](?:https:\/\/www\.mypetrolprice\.com)?\/(\d+)\/Fuel-prices-in-([^"']+)["'][^>]*>([^<]+)<\/a>/gi,
+				);
+			} catch (error) {
+				throw new TRPCError({
+					code: "BAD_GATEWAY",
+					message: `Could not load districts: ${error instanceof Error ? error.message : "Unknown error"}`,
+				});
+			}
+		}),
+	current: protectedProcedure
+		.input(z.object({ groupId: id }))
+		.query(async ({ ctx, input }) => {
+			const record = await ownedGroup(ctx, input.groupId);
+			try {
+				const slug = record.fuelDistrict.replace(/[^A-Za-z0-9]+/g, "-");
+				const html = await fetchFuelPage(
+					`/${record.fuelLocationId}/Fuel-prices-in-${slug}`,
+				);
+				const text = stripHtml(html);
+				const label = record.fuelType === "petrol" ? "Petrol" : "Diesel";
+				const match = text.match(
+					new RegExp(
+						`₹\\s*([0-9]+(?:\\.[0-9]+)?)\\s*per litre for ${label}`,
+						"i",
+					),
+				);
+				const priceRupees = match?.[1] ? Number(match[1]) : null;
+				if (!priceRupees || priceRupees < 50 || priceRupees > 300)
+					throw new Error(`No valid ${record.fuelType} price was found`);
+				const pricePaise = Math.round(priceRupees * 100);
+				return {
+					pricePaise,
+					location: `${record.fuelDistrict}, ${record.fuelState}`,
+					fuelType: record.fuelType,
+					source: "mypetrolprice" as const,
+					fetchedAt: new Date().toISOString(),
+					quoteToken: await createFuelQuote(
+						ctx.fuelQuoteSecret,
+						ctx.session.user.id,
+						record.id,
+						pricePaise,
+					),
+				};
+			} catch (error) {
+				throw new TRPCError({
+					code: "BAD_GATEWAY",
+					message: `Could not fetch the current ${record.fuelType} price for ${record.fuelDistrict}: ${error instanceof Error ? error.message : "Unknown error"}. Enter it manually.`,
+				});
+			}
+		}),
 });
 
 export const journeyRouter = router({
@@ -310,19 +437,20 @@ export const journeyRouter = router({
 					.int()
 					.positive()
 					.max(MAX_PETROL_PRICE_PAISE),
-				petrolPriceSource: z.enum(["indianapi", "manual"]),
+				petrolPriceSource: z.enum(["mypetrolprice", "manual"]),
 				fuelQuoteToken: z.string().max(1024).optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
 			const record = await ownedGroup(ctx, input.groupId);
 			if (
-				input.petrolPriceSource === "indianapi" &&
+				input.petrolPriceSource === "mypetrolprice" &&
 				(!input.fuelQuoteToken ||
 					!(await verifyFuelQuote(
 						ctx.fuelQuoteSecret,
 						input.fuelQuoteToken,
 						ctx.session.user.id,
+						input.groupId,
 						input.petrolPricePaise,
 					)))
 			)
@@ -431,6 +559,221 @@ export const paymentRouter = router({
 		}),
 });
 
+export const sharedTripRouter = router({
+	list: protectedProcedure.query(({ ctx }) =>
+		ctx.db
+			.select({
+				groupId: group.id,
+				groupName: group.name,
+				vehicleName: group.vehicleName,
+				personId: person.id,
+				personName: person.name,
+			})
+			.from(person)
+			.innerJoin(group, eq(group.id, person.groupId))
+			.where(
+				and(
+					eq(person.isActive, 1),
+					sql`lower(${person.email}) = lower(${ctx.session.user.email})`,
+					sql`${group.ownerId} <> ${ctx.session.user.id}`,
+				),
+			)
+			.orderBy(desc(group.createdAt)),
+	),
+	detail: protectedProcedure
+		.input(z.object({ groupId: id }))
+		.query(async ({ ctx, input }) => {
+			const [membership] = await ctx.db
+				.select({
+					personId: person.id,
+					personName: person.name,
+					groupName: group.name,
+					vehicleName: group.vehicleName,
+				})
+				.from(person)
+				.innerJoin(group, eq(group.id, person.groupId))
+				.where(
+					and(
+						eq(group.id, input.groupId),
+						eq(person.isActive, 1),
+						sql`lower(${person.email}) = lower(${ctx.session.user.email})`,
+					),
+				)
+				.limit(1);
+			if (!membership)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Shared trip not found",
+				});
+			const rows = await ctx.db
+				.select({
+					id: journey.id,
+					journeyDate: journey.journeyDate,
+					direction: journey.direction,
+					distanceKm: journey.distanceKm,
+					sharePaise: journeyParticipant.sharePaise,
+					correctionId: correctionRequest.id,
+					correctionStatus: correctionRequest.status,
+				})
+				.from(journeyParticipant)
+				.innerJoin(journey, eq(journey.id, journeyParticipant.journeyId))
+				.leftJoin(
+					correctionRequest,
+					and(
+						eq(correctionRequest.journeyId, journey.id),
+						eq(correctionRequest.personId, membership.personId),
+					),
+				)
+				.where(
+					and(
+						eq(journey.groupId, input.groupId),
+						eq(journeyParticipant.personId, membership.personId),
+					),
+				)
+				.orderBy(desc(journey.journeyDate));
+			return { ...membership, journeys: rows };
+		}),
+	raiseCorrection: protectedProcedure
+		.input(
+			z.object({ journeyId: id, note: z.string().trim().max(500).optional() }),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [attendance] = await ctx.db
+				.select({ personId: person.id })
+				.from(journeyParticipant)
+				.innerJoin(journey, eq(journey.id, journeyParticipant.journeyId))
+				.innerJoin(
+					person,
+					and(
+						eq(person.id, journeyParticipant.personId),
+						eq(person.groupId, journey.groupId),
+					),
+				)
+				.where(
+					and(
+						eq(journey.id, input.journeyId),
+						eq(person.isActive, 1),
+						sql`lower(${person.email}) = lower(${ctx.session.user.email})`,
+					),
+				)
+				.limit(1);
+			if (!attendance)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Attendance record not found",
+				});
+			const [created] = await ctx.db
+				.insert(correctionRequest)
+				.values({
+					id: crypto.randomUUID(),
+					journeyId: input.journeyId,
+					personId: attendance.personId,
+					requesterUserId: ctx.session.user.id,
+					note: input.note || null,
+				})
+				.onConflictDoNothing()
+				.returning();
+			if (!created)
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: "A correction was already raised for this journey",
+				});
+			return created;
+		}),
+});
+
+export const correctionRouter = router({
+	resolve: protectedProcedure
+		.input(
+			z.object({
+				groupId: id,
+				correctionId: id,
+				status: z.enum(["approved", "rejected"]),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ownedGroup(ctx, input.groupId);
+			const [request] = await ctx.db
+				.select({
+					id: correctionRequest.id,
+					journeyId: correctionRequest.journeyId,
+					personId: correctionRequest.personId,
+				})
+				.from(correctionRequest)
+				.innerJoin(journey, eq(journey.id, correctionRequest.journeyId))
+				.where(
+					and(
+						eq(correctionRequest.id, input.correctionId),
+						eq(journey.groupId, input.groupId),
+					),
+				)
+				.limit(1);
+			if (!request)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Correction not found",
+				});
+			return ctx.db.transaction(async (tx) => {
+				if (input.status === "approved") {
+					const remaining = await tx
+						.select({ personId: journeyParticipant.personId })
+						.from(journeyParticipant)
+						.where(
+							and(
+								eq(journeyParticipant.journeyId, request.journeyId),
+								sql`${journeyParticipant.personId} <> ${request.personId}`,
+							),
+						);
+					if (!remaining.length)
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message: "A journey must retain at least one participant",
+						});
+					const [ride] = await tx
+						.select({ fuelCostPaise: journey.fuelCostPaise })
+						.from(journey)
+						.where(eq(journey.id, request.journeyId))
+						.limit(1);
+					if (!ride)
+						throw new TRPCError({
+							code: "NOT_FOUND",
+							message: "Journey not found",
+						});
+					const baseShare = Math.floor(ride.fuelCostPaise / remaining.length);
+					const remainder = ride.fuelCostPaise % remaining.length;
+					await tx
+						.delete(journeyParticipant)
+						.where(
+							and(
+								eq(journeyParticipant.journeyId, request.journeyId),
+								eq(journeyParticipant.personId, request.personId),
+							),
+						);
+					for (const [index, member] of remaining.entries())
+						await tx
+							.update(journeyParticipant)
+							.set({ sharePaise: baseShare + (index < remainder ? 1 : 0) })
+							.where(
+								and(
+									eq(journeyParticipant.journeyId, request.journeyId),
+									eq(journeyParticipant.personId, member.personId),
+								),
+							);
+					await tx
+						.update(journey)
+						.set({ participantCount: remaining.length, sharePaise: baseShare })
+						.where(eq(journey.id, request.journeyId));
+				}
+				const [updated] = await tx
+					.update(correctionRequest)
+					.set({ status: input.status, resolvedAt: new Date() })
+					.where(eq(correctionRequest.id, request.id))
+					.returning();
+				return updated;
+			});
+		}),
+});
+
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => "OK"),
 	groups: groupRouter,
@@ -438,6 +781,8 @@ export const appRouter = router({
 	fuel: fuelRouter,
 	journeys: journeyRouter,
 	payments: paymentRouter,
+	sharedTrips: sharedTripRouter,
+	corrections: correctionRouter,
 	dashboard: protectedProcedure.query(async ({ ctx }) => {
 		const groups = await ctx.db
 			.select()

@@ -17,7 +17,17 @@ export const journeyDirection = pgEnum("journey_direction", [
 	"one_way",
 	"two_way",
 ]);
-export const priceSource = pgEnum("price_source", ["indianapi", "manual"]);
+export const priceSource = pgEnum("price_source", [
+	"indianapi",
+	"mypetrolprice",
+	"manual",
+]);
+export const fuelType = pgEnum("fuel_type", ["petrol", "diesel"]);
+export const correctionStatus = pgEnum("correction_status", [
+	"pending",
+	"approved",
+	"rejected",
+]);
 export const paymentMethod = pgEnum("payment_method", [
 	"upi",
 	"cash",
@@ -39,6 +49,10 @@ export const group = pgTable(
 			precision: 8,
 			scale: 2,
 		}).notNull(),
+		fuelType: fuelType("fuel_type").default("petrol").notNull(),
+		fuelState: text("fuel_state").default("Karnataka").notNull(),
+		fuelDistrict: text("fuel_district").default("Udupi").notNull(),
+		fuelLocationId: integer("fuel_location_id").default(383).notNull(),
 		startDate: date("start_date", { mode: "string" }).notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
@@ -58,13 +72,17 @@ export const person = pgTable(
 			.notNull()
 			.references(() => group.id, { onDelete: "cascade" }),
 		name: text("name").notNull(),
+		email: text("email"),
 		phone: text("phone"),
 		isActive: integer("is_active").default(1).notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),
 	},
-	(table) => [index("person_group_idx").on(table.groupId)],
+	(table) => [
+		index("person_group_idx").on(table.groupId),
+		uniqueIndex("person_group_email_uidx").on(table.groupId, table.email),
+	],
 );
 
 export const journey = pgTable(
@@ -128,6 +146,35 @@ export const payment = pgTable(
 	},
 	(table) => [
 		index("payment_group_person_idx").on(table.groupId, table.personId),
+	],
+);
+
+export const correctionRequest = pgTable(
+	"correction_request",
+	{
+		id: text("id").primaryKey(),
+		journeyId: text("journey_id")
+			.notNull()
+			.references(() => journey.id, { onDelete: "cascade" }),
+		personId: text("person_id")
+			.notNull()
+			.references(() => person.id, { onDelete: "cascade" }),
+		requesterUserId: text("requester_user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		note: text("note"),
+		status: correctionStatus("status").default("pending").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+	},
+	(table) => [
+		uniqueIndex("correction_journey_person_uidx").on(
+			table.journeyId,
+			table.personId,
+		),
+		index("correction_person_idx").on(table.personId),
 	],
 );
 

@@ -4,7 +4,6 @@ import type { Database } from "@TripShare/db";
 export type Context = {
 	auth: null;
 	clientIp: string;
-	indianApiKey?: string;
 	fuelQuoteSecret: string;
 	session: Awaited<
 		ReturnType<ReturnType<typeof createAuth>["api"]["getSession"]>

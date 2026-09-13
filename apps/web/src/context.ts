@@ -15,7 +15,6 @@ export async function createContext(req: NextRequest): Promise<ApiContext> {
 			req.headers.get("x-real-ip") ??
 			req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ??
 			"unknown",
-		indianApiKey: env.INDIAN_API_KEY || undefined,
 		fuelQuoteSecret: env.BETTER_AUTH_SECRET,
 		session,
 	};

@@ -26,7 +26,6 @@ Requirements: Node.js, pnpm 11, and PostgreSQL.
    BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
    BETTER_AUTH_URL=http://localhost:3001
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tripshare
-   INDIAN_API_KEY=your-indianapi-key
    GOOGLE_CLIENT_ID=your-google-web-client-id
    GOOGLE_CLIENT_SECRET=your-google-web-client-secret
    ```
@@ -41,7 +40,9 @@ Requirements: Node.js, pnpm 11, and PostgreSQL.
 
 5. Run `pnpm dev:web` and, separately, `pnpm dev:native`.
 
-The generated migration is in `packages/db/src/migrations`. `INDIAN_API_KEY` is server-only and is never exposed through a public environment variable or bundled into either client.
+The generated migrations are in `packages/db/src/migrations`. Current petrol/diesel prices are read server-side from MyPetrolPrice; no fuel API key is required. If that source is unavailable, journey entry clearly offers a manual price instead.
+
+Authentication uses Google OAuth only. A partner receives read-only access when the email saved on their person record matches their Google account email.
 
 For Google OAuth, create a Web application credential in Google Cloud and register these authorized redirect URIs:
 
