@@ -10,6 +10,7 @@ import {
 	Fuel,
 	Plus,
 	ReceiptIndianRupee,
+	Settings,
 	Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -34,6 +35,7 @@ const Field = ({
 export default function Dashboard() {
 	const groups = useQuery(trpc.groups.list.queryOptions());
 	const summary = useQuery(trpc.dashboard.queryOptions());
+	const shared = useQuery(trpc.sharedTrips.list.queryOptions());
 	const [selected, setSelected] = useState<string>();
 	const [panel, setPanel] = useState<Action>();
 	const groupId = selected ?? groups.data?.[0]?.id;
@@ -104,6 +106,7 @@ export default function Dashboard() {
 					<small>{summary.data?.groupCount ?? 0} groups</small>
 				</div>
 			</section>
+			<SharedTrips items={shared.data ?? []} />
 			<div className="workspace-grid">
 				<aside className="groups-pane">
 					<div className="section-title">
@@ -177,7 +180,7 @@ export default function Dashboard() {
 }
 
 type Detail = inferRouterOutputs<AppRouter>["groups"]["detail"];
-type Action = "group" | "person" | "journey" | "payment";
+type Action = "group" | "person" | "journey" | "payment" | "settings";
 const Empty = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
 	<div className="empty-small">
 		{icon}
@@ -185,8 +188,91 @@ const Empty = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
 	</div>
 );
 
+type SharedItem = inferRouterOutputs<AppRouter>["sharedTrips"]["list"][number];
+function SharedTrips({ items }: { items: SharedItem[] }) {
+	const [selected, setSelected] = useState<string>();
+	const groupId = selected ?? items[0]?.groupId;
+	const detail = useQuery({
+		...trpc.sharedTrips.detail.queryOptions({ groupId: groupId ?? "" }),
+		enabled: Boolean(groupId),
+	});
+	const correction = useMutation(
+		trpc.sharedTrips.raiseCorrection.mutationOptions({
+			onSuccess: async () => {
+				toast.success("Correction sent to the trip owner");
+				await detail.refetch();
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	if (!items.length) return null;
+	return (
+		<section className="ledger-pane" style={{ marginBottom: 24 }}>
+			<div className="section-title">
+				<div>
+					<p className="eyebrow">Shared with me</p>
+					<h2>Read-only trips</h2>
+				</div>
+			</div>
+			<div className="button-row">
+				{items.map((item) => (
+					<button
+						type="button"
+						key={item.groupId}
+						onClick={() => setSelected(item.groupId)}
+					>
+						{item.groupName}
+					</button>
+				))}
+			</div>
+			{detail.data?.journeys.map((ride) => (
+				<article className="journey-row" key={ride.id}>
+					<span className="journey-copy">
+						<b>{ride.journeyDate}</b>
+						<small>
+							{ride.direction === "two_way"
+								? "Return journey"
+								: "One-way journey"}{" "}
+							· {ride.distanceKm} km · {formatRupees(ride.sharePaise)}
+						</small>
+					</span>
+					{ride.correctionStatus ? (
+						<strong>{ride.correctionStatus}</strong>
+					) : (
+						<button
+							type="button"
+							onClick={() =>
+								correction.mutate({
+									journeyId: ride.id,
+									note: "I did not join this journey.",
+								})
+							}
+						>
+							I wasn’t there
+						</button>
+					)}
+				</article>
+			))}
+			{detail.data && !detail.data.journeys.length && (
+				<p className="muted">No attendance has been recorded for you.</p>
+			)}
+		</section>
+	);
+}
+
 function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 	const balances = new Map(data.balances.map((b) => [b.personId, b]));
+	const resolve = useMutation(
+		trpc.corrections.resolve.mutationOptions({
+			onSuccess: async () => {
+				toast.success("Correction updated");
+				await queryClient.invalidateQueries({
+					queryKey: trpc.groups.detail.queryKey({ groupId: data.group.id }),
+				});
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 	return (
 		<>
 			<div className="ledger-header">
@@ -199,6 +285,9 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 					</p>
 				</div>
 				<div className="button-row">
+					<button type="button" onClick={() => act("settings")}>
+						<Settings size={16} /> Settings
+					</button>
 					<button type="button" onClick={() => act("person")}>
 						<Users size={16} /> Add person
 					</button>
@@ -207,6 +296,55 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 					</button>
 				</div>
 			</div>
+			<section>
+				<div className="section-title">
+					<div>
+						<p className="eyebrow">Corrections</p>
+						<h3>Attendance requests</h3>
+					</div>
+				</div>
+				{data.corrections
+					.filter((item) => item.status === "pending")
+					.map((item) => (
+						<article className="journey-row" key={item.id}>
+							<span className="journey-copy">
+								<b>{item.personName}</b>
+								<small>
+									{item.note || "Says they did not join this journey."}
+								</small>
+							</span>
+							<span className="button-row">
+								<button
+									type="button"
+									onClick={() =>
+										resolve.mutate({
+											groupId: data.group.id,
+											correctionId: item.id,
+											status: "approved",
+										})
+									}
+								>
+									Approve
+								</button>
+								<button
+									type="button"
+									onClick={() =>
+										resolve.mutate({
+											groupId: data.group.id,
+											correctionId: item.id,
+											status: "rejected",
+										})
+									}
+								>
+									Reject
+								</button>
+							</span>
+						</article>
+					))}
+				{!data.corrections.some((item) => item.status === "pending") && (
+					<p className="muted">No pending corrections.</p>
+				)}
+			</section>
 			<section>
 				<div className="section-title">
 					<div>
@@ -316,7 +454,13 @@ function Panel({
 	const [people, setPeople] = useState<string[]>([]);
 	const [price, setPrice] = useState<number>();
 	const [fuelQuoteToken, setFuelQuoteToken] = useState<string>();
-	const [source, setSource] = useState<"indianapi" | "manual">("indianapi");
+	const [source, setSource] = useState<"mypetrolprice" | "manual">(
+		"mypetrolprice",
+	);
+	const [fuelStateChoice, setFuelStateChoice] = useState<{
+		id: number;
+		slug: string;
+	}>();
 	const set = (key: string, value: string) =>
 		setForm((old) => ({ ...old, [key]: value }));
 	const callbacks = {
@@ -333,8 +477,28 @@ function Panel({
 	const newPayment = useMutation(
 		trpc.payments.create.mutationOptions(callbacks),
 	);
+	const updateSettings = useMutation(
+		trpc.groups.updateSettings.mutationOptions(callbacks),
+	);
+	const fuelStates = useQuery({
+		...trpc.fuel.states.queryOptions(),
+		enabled: kind === "settings",
+		staleTime: 86_400_000,
+	});
+	const defaultFuelState = fuelStates.data?.find(
+		(item) => item.name === data?.group.fuelState,
+	);
+	const activeFuelState = fuelStateChoice ?? defaultFuelState;
+	const fuelDistricts = useQuery({
+		...trpc.fuel.districts.queryOptions({
+			stateId: activeFuelState?.id ?? 1,
+			stateSlug: activeFuelState?.slug ?? "India",
+		}),
+		enabled: kind === "settings" && Boolean(activeFuelState),
+		staleTime: 86_400_000,
+	});
 	const fuel = useQuery({
-		...trpc.fuel.current.queryOptions(),
+		...trpc.fuel.current.queryOptions({ groupId: groupId ?? "" }),
 		enabled: false,
 		retry: false,
 	});
@@ -362,7 +526,24 @@ function Panel({
 				startDate: form.startDate ?? today(),
 			});
 		if (kind === "person" && groupId)
-			newPerson.mutate({ groupId, name: form.name ?? "", phone: form.phone });
+			newPerson.mutate({
+				groupId,
+				name: form.name ?? "",
+				email: form.email ?? "",
+				phone: form.phone,
+			});
+		if (kind === "settings" && groupId && data)
+			updateSettings.mutate({
+				groupId,
+				mileageKmpl: Number(form.mileage || data.group.mileageKmpl),
+				normalOneWayKm: Number(form.distance || data.group.normalOneWayKm),
+				fuelType: (form.fuelType || data.group.fuelType) as "petrol" | "diesel",
+				fuelState: form.fuelState || data.group.fuelState,
+				fuelDistrict: form.fuelDistrict || data.group.fuelDistrict,
+				fuelLocationId: Number(
+					form.fuelLocationId || data.group.fuelLocationId,
+				),
+			});
 		if (kind === "payment" && groupId)
 			newPayment.mutate({
 				groupId,
@@ -389,15 +570,18 @@ function Panel({
 		if (result.data) {
 			setPrice(result.data.pricePaise);
 			setFuelQuoteToken(result.data.quoteToken);
-			setSource("indianapi");
-			toast.success("Udupi petrol price loaded");
+			setSource("mypetrolprice");
+			toast.success(
+				`${result.data.location} ${result.data.fuelType} price loaded`,
+			);
 		}
 	};
 	const busy =
 		newGroup.isPending ||
 		newPerson.isPending ||
 		newJourney.isPending ||
-		newPayment.isPending;
+		newPayment.isPending ||
+		updateSettings.isPending;
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop is a conventional modal dismissal target
 		<div className="modal-backdrop" role="presentation" onMouseDown={close}>
@@ -417,7 +601,9 @@ function Panel({
 									? "Add a person"
 									: kind === "payment"
 										? "Record payment"
-										: "Add journey"}
+										: kind === "settings"
+											? "Trip settings"
+											: "Add journey"}
 						</h2>
 					</div>
 					<button className="icon-button" type="button" onClick={close}>
@@ -485,8 +671,101 @@ function Panel({
 									onChange={(e) => set("phone", e.target.value)}
 								/>
 							</Field>
+							<Field label="Email">
+								<input
+									required
+									type="email"
+									onChange={(e) => set("email", e.target.value)}
+								/>
+							</Field>
 							<p className="hint">
-								Contacts don’t receive invitations and never need an account.
+								Their Google account with this email gets automatic read-only
+								access.
+							</p>
+						</>
+					)}
+					{kind === "settings" && data && (
+						<>
+							<div className="form-grid">
+								<Field label="Mileage (km/l)">
+									<input
+										type="number"
+										min="1"
+										step="0.1"
+										defaultValue={data.group.mileageKmpl}
+										onChange={(e) => set("mileage", e.target.value)}
+									/>
+								</Field>
+								<Field label="One-way distance (km)">
+									<input
+										type="number"
+										min="0.1"
+										step="0.1"
+										defaultValue={data.group.normalOneWayKm}
+										onChange={(e) => set("distance", e.target.value)}
+									/>
+								</Field>
+							</div>
+							<Field label="Fuel type">
+								<select
+									defaultValue={data.group.fuelType}
+									onChange={(e) => set("fuelType", e.target.value)}
+								>
+									<option value="petrol">Petrol</option>
+									<option value="diesel">Diesel</option>
+								</select>
+							</Field>
+							<div className="form-grid">
+								<Field label="State">
+									<select
+										defaultValue={data.group.fuelState}
+										onChange={(e) => {
+											const option = fuelStates.data?.find(
+												(item) => item.name === e.target.value,
+											);
+											set("fuelState", e.target.value);
+											setFuelStateChoice(option);
+										}}
+									>
+										<option value={data.group.fuelState}>
+											{data.group.fuelState}
+										</option>
+										{fuelStates.data
+											?.filter((item) => item.name !== data.group.fuelState)
+											.map((item) => (
+												<option key={item.id} value={item.name}>
+													{item.name}
+												</option>
+											))}
+									</select>
+								</Field>
+								<Field label="District / city">
+									<select
+										defaultValue={data.group.fuelDistrict}
+										onChange={(e) => {
+											const option = fuelDistricts.data?.find(
+												(item) => item.name === e.target.value,
+											);
+											set("fuelDistrict", e.target.value);
+											if (option) set("fuelLocationId", String(option.id));
+										}}
+									>
+										<option value={data.group.fuelDistrict}>
+											{data.group.fuelDistrict}
+										</option>
+										{fuelDistricts.data
+											?.filter((item) => item.name !== data.group.fuelDistrict)
+											.map((item) => (
+												<option key={item.id} value={item.name}>
+													{item.name}
+												</option>
+											))}
+									</select>
+								</Field>
+							</div>
+							<p className="hint">
+								Locations are loaded directly from MyPetrolPrice. Existing
+								settings remain usable if its directory is unavailable.
 							</p>
 						</>
 					)}
@@ -611,7 +890,9 @@ function Panel({
 								<div>
 									<Fuel size={20} />
 									<span>
-										<b>Petrol price · Udupi</b>
+										<b>
+											{data?.group.fuelDistrict} {data?.group.fuelType} price
+										</b>
 										<small>
 											{price
 												? `${formatRupees(price)} / litre`

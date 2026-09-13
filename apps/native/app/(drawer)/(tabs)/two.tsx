@@ -8,6 +8,7 @@ import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
 
 export default function AddJourney() {
+	const today = new Date().toISOString().slice(0, 10);
 	const groups = useQuery(trpc.groups.list.queryOptions());
 	const [groupId, setGroupId] = useState<string>();
 	const currentId = groupId ?? groups.data?.[0]?.id;
@@ -16,7 +17,7 @@ export default function AddJourney() {
 		enabled: Boolean(currentId),
 	});
 	const fuel = useQuery({
-		...trpc.fuel.current.queryOptions(),
+		...trpc.fuel.current.queryOptions({ groupId: currentId ?? "" }),
 		enabled: false,
 		retry: false,
 	});
@@ -26,6 +27,7 @@ export default function AddJourney() {
 	const [people, setPeople] = useState<string[]>([]);
 	const [twoWay, setTwoWay] = useState(false);
 	const [distance, setDistance] = useState("");
+	const [journeyDate, setJourneyDate] = useState(today);
 	const km = Number(
 		distance ||
 			Number(detail.data?.group.normalOneWayKm ?? 0) * (twoWay ? 2 : 1),
@@ -83,6 +85,14 @@ export default function AddJourney() {
 					</Pressable>
 				))}
 			</View>
+			<Text className="mt-6 mb-2 font-black text-foreground text-sm">Date</Text>
+			<TextInput
+				value={journeyDate}
+				onChangeText={setJourneyDate}
+				placeholder="YYYY-MM-DD"
+				autoCapitalize="none"
+				className="border-2 border-foreground bg-background px-4 py-4 text-foreground"
+			/>
 			<Text className="mt-6 mb-2 font-black text-foreground text-sm">
 				Direction
 			</Text>
@@ -144,7 +154,8 @@ export default function AddJourney() {
 					<Ionicons name="flame-outline" size={22} />
 					<View className="ml-3 flex-1">
 						<Text className="font-bold text-foreground">
-							Udupi petrol price
+							{detail.data?.group.fuelDistrict} {detail.data?.group.fuelType}{" "}
+							price
 						</Text>
 						<Text className="text-muted text-sm">
 							{price
@@ -205,12 +216,12 @@ export default function AddJourney() {
 					price &&
 					save.mutate({
 						groupId: currentId,
-						journeyDate: new Date().toISOString().slice(0, 10),
+						journeyDate,
 						direction: twoWay ? "two_way" : "one_way",
 						distanceKm: km,
 						participantIds: people,
 						petrolPricePaise: price,
-						petrolPriceSource: fuelQuoteToken ? "indianapi" : "manual",
+						petrolPriceSource: fuelQuoteToken ? "mypetrolprice" : "manual",
 						fuelQuoteToken,
 					})
 				}

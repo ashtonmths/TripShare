@@ -41,6 +41,15 @@ export default function TabLayout() {
 					),
 				}}
 			/>
+			<Tabs.Screen
+				name="three"
+				options={{
+					title: "Shared",
+					tabBarIcon: ({ color, size }) => (
+						<Ionicons name="eye-outline" size={size} color={color} />
+					),
+				}}
+			/>
 		</Tabs>
 	);
 }
