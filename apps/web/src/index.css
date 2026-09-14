@@ -143,6 +143,27 @@ a:active {
 	box-shadow: 2px 2px 0 var(--ink);
 	font-weight: 800;
 }
+.header-download-link,
+.mobile-download-link {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	padding: 8px 11px;
+	background: var(--lime);
+	color: #171717;
+	font-size: 13px;
+	font-weight: 850;
+}
+.header-download-link:disabled,
+.mobile-download-link:disabled {
+	cursor: not-allowed;
+	opacity: 0.55;
+}
+.mobile-download-link {
+	border: var(--hard-border);
+	box-shadow: 3px 3px 0 var(--ink);
+}
 .theme-switch {
 	position: relative;
 	display: flex;
@@ -762,17 +783,17 @@ legend {
 	align-items: center;
 	justify-content: center;
 	padding: 32px;
-	background: #111714;
-	color: #fffaf0;
+	background: var(--background);
+	color: var(--ink);
 }
 .app-loader-mark {
 	width: 102px;
 	height: 102px;
 	display: grid;
 	place-items: center;
-	border: 2px solid #fffaf0;
+	border: var(--hard-border);
 	background: #c8f55a;
-	box-shadow: 5px 5px 0 #fffaf0;
+	box-shadow: 5px 5px 0 var(--ink);
 }
 .app-loader-mark img {
 	object-fit: contain;
@@ -786,8 +807,8 @@ legend {
 	width: 116px;
 	height: 9px;
 	margin-top: 20px;
-	border: 1px solid #fffaf0;
-	background: #050505;
+	border: 1px solid var(--ink);
+	background: var(--background);
 	overflow: hidden;
 }
 .app-loader-track span {
@@ -799,7 +820,7 @@ legend {
 }
 .app-loader p {
 	margin-top: 11px;
-	color: #d7d7d7;
+	color: var(--muted);
 	font-size: 14px;
 }
 @keyframes loader-drive {

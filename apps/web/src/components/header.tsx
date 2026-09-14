@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { DownloadAppLink } from "./download-app-link";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
@@ -36,6 +37,7 @@ export default function Header() {
 				</nav>
 				<div className="nav-actions">
 					<ModeToggle />
+					<DownloadAppLink />
 					<UserMenu />
 				</div>
 				<button
@@ -70,6 +72,7 @@ export default function Header() {
 							<span>Appearance</span>
 							<ModeToggle />
 						</div>
+						<DownloadAppLink mobile />
 						<UserMenu />
 					</aside>
 				</>

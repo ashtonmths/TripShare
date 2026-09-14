@@ -1,17 +1,24 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "@tanstack/react-query";
+import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Alert, Image, Pressable, Text, TextInput, View } from "react-native";
 import { Container } from "@/components/container";
 import { useObserveReady } from "@/hooks/use-observe-ready";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
-import { queryClient } from "@/utils/trpc";
+import { queryClient, trpc } from "@/utils/trpc";
 
 export default function Profile() {
 	const { data: session, isPending } = authClient.useSession();
 	useObserveReady(!isPending && Boolean(session));
 	const [name, setName] = useState(session?.user.name ?? "");
 	const [saving, setSaving] = useState(false);
+	const [failedImage, setFailedImage] = useState<string | null>(null);
+	const release = useQuery({
+		...trpc.releases.latest.queryOptions({ platform: "android" }),
+		staleTime: 15 * 60 * 1000,
+	});
 	if (!session) return null;
 	const initials = session.user.name
 		.split(/\s+/)
@@ -29,10 +36,11 @@ export default function Profile() {
 				className="mt-6 items-center border-2 border-foreground bg-[#8dc8ff] p-6"
 				style={hardShadow}
 			>
-				{session.user.image ? (
+				{session.user.image && failedImage !== session.user.image ? (
 					<Image
 						source={{ uri: session.user.image }}
 						className="h-24 w-24 rounded-full border-2 border-black"
+						onError={() => setFailedImage(session.user.image ?? null)}
 					/>
 				) : (
 					<View className="h-24 w-24 items-center justify-center rounded-full border-2 border-black bg-white">
@@ -44,6 +52,19 @@ export default function Profile() {
 				</Text>
 				<Text className="mt-1 text-black">{session.user.email}</Text>
 			</View>
+			<Pressable
+				disabled={!release.data}
+				onPress={() => {
+					if (release.data) Linking.openURL(release.data.downloadUrl);
+				}}
+				className="mt-6 flex-row items-center justify-center gap-2 border-2 border-foreground bg-[#c8f55a] p-4 disabled:opacity-50"
+				style={hardShadow}
+			>
+				<Ionicons name="download-outline" size={20} color="#111" />
+				<Text className="font-black text-black">
+					{release.data ? "Download latest APK" : "APK not published yet"}
+				</Text>
+			</Pressable>
 			<View className="mt-6 gap-2">
 				<Text className="font-black text-foreground text-sm">Display name</Text>
 				<TextInput

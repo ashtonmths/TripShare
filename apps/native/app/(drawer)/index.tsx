@@ -2,7 +2,7 @@ import { formatRupees } from "@TripShare/shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { AppLoading } from "@/components/app-loading";
 import { Container } from "@/components/container";
@@ -14,6 +14,7 @@ import { trpc } from "@/utils/trpc";
 
 export function Home({ inTabs = false }: { inTabs?: boolean }) {
 	const { data: session, isPending } = authClient.useSession();
+	const [failedImage, setFailedImage] = useState<string | null>(null);
 	useEffect(() => {
 		if (session && !inTabs) router.replace("/(drawer)/(tabs)/home");
 	}, [inTabs, session]);
@@ -69,10 +70,11 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 					onPress={() => router.push("/(drawer)/(tabs)/three")}
 					className="h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-background"
 				>
-					{session.user.image ? (
+					{session.user.image && failedImage !== session.user.image ? (
 						<Image
 							source={{ uri: session.user.image }}
 							className="h-full w-full"
+							onError={() => setFailedImage(session.user.image ?? null)}
 						/>
 					) : (
 						<Text className="font-black text-foreground">

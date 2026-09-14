@@ -12,6 +12,7 @@ import { Skeleton } from "@TripShare/ui/components/skeleton";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -19,6 +20,7 @@ import { authClient } from "@/lib/auth-client";
 export default function UserMenu() {
 	const router = useRouter();
 	const { data: session, isPending } = authClient.useSession();
+	const [failedImage, setFailedImage] = useState<string | null>(null);
 
 	if (isPending) {
 		return <Skeleton className="h-9 w-24" />;
@@ -38,13 +40,14 @@ export default function UserMenu() {
 				render={<Button className="user-trigger" variant="outline" />}
 			>
 				<span className="user-avatar">
-					{session.user.image ? (
+					{session.user.image && failedImage !== session.user.image ? (
 						<Image
 							src={session.user.image}
 							alt=""
 							width={24}
 							height={24}
 							unoptimized
+							onError={() => setFailedImage(session.user.image ?? null)}
 						/>
 					) : (
 						session.user.name.slice(0, 1).toUpperCase()
