@@ -122,19 +122,24 @@ function SelectField({
 	value,
 	onChange,
 	items,
+	disabled = false,
 }: {
 	label: string;
 	value: string;
 	onChange: (value: string) => void;
 	items: Array<{ label: string; value: string }>;
+	disabled?: boolean;
 }) {
 	const foreground = useThemeColor("foreground");
 	const background = useThemeColor("background");
 	return (
 		<View className="gap-2">
 			<Text className="font-black text-foreground text-sm">{label}</Text>
-			<View className="border-2 border-foreground bg-background">
+			<View
+				className={`border-2 border-foreground bg-background ${disabled ? "opacity-50" : ""}`}
+			>
 				<Picker
+					enabled={!disabled}
 					selectedValue={value}
 					onValueChange={(next) => onChange(String(next))}
 					style={{ color: foreground, backgroundColor: background }}
@@ -394,6 +399,12 @@ export default function Trips() {
 		await queryClient.invalidateQueries();
 		setMode(undefined);
 	};
+	const updateParticipantDirection = useMutation(
+		trpc.journeys.updateParticipantDirection.mutationOptions({
+			onSuccess: refresh,
+			onError: (error) => Alert.alert("Couldn’t update journey", error.message),
+		}),
+	);
 
 	if (!session)
 		return (
@@ -623,6 +634,38 @@ export default function Trips() {
 								<Text className="mt-1 text-muted text-xs">
 									{ride.participants.map((item) => item.name).join(", ")}
 								</Text>
+								<View className="mt-3 gap-2">
+									{ride.participants.map((participant) => (
+										<View
+											key={participant.personId}
+											className="flex-row items-center gap-2"
+										>
+											<Text className="flex-1 font-bold text-foreground text-xs">
+												{participant.name}
+											</Text>
+											{(["one_way", "two_way"] as const).map((direction) => (
+												<Pressable
+													key={direction}
+													disabled={updateParticipantDirection.isPending}
+													onPress={() =>
+														updateParticipantDirection.mutate({
+															journeyId: ride.id,
+															personId: participant.personId,
+															direction,
+														})
+													}
+													className={`border-2 border-foreground px-2 py-1 ${participant.direction === direction ? "bg-[#8dc8ff]" : "bg-background"}`}
+												>
+													<Text
+														className={`font-bold text-xs ${participant.direction === direction ? "text-black" : "text-foreground"}`}
+													>
+														{direction === "one_way" ? "One way" : "Return"}
+													</Text>
+												</Pressable>
+											))}
+										</View>
+									))}
+								</View>
 							</View>
 						))
 					)}
@@ -987,58 +1030,55 @@ function Editor({
 										</Pressable>
 									))}
 								</View>
-								<Text className="font-black text-foreground text-sm">
-									State
-								</Text>
-								<ScrollView
-									horizontal
-									showsHorizontalScrollIndicator={false}
-									contentContainerClassName="gap-2"
-								>
-									{states.data?.map((item) => (
-										<Pressable
-											key={item.id}
-											onPress={() => {
-												setStateChoice(item);
-												set("fuelState", item.name);
-												set("fuelDistrict", "");
-												set("fuelLocationId", "");
-											}}
-											className={`border-2 border-foreground px-3 py-2 ${form.fuelState === item.name ? "bg-[#8dc8ff]" : "bg-background"}`}
-										>
-											<Text
-												className={`font-bold text-xs ${form.fuelState === item.name ? "text-black" : "text-foreground"}`}
-											>
-												{item.name}
-											</Text>
-										</Pressable>
-									))}
-								</ScrollView>
-								<Text className="font-black text-foreground text-sm">
-									District / city
-								</Text>
-								<ScrollView
-									horizontal
-									showsHorizontalScrollIndicator={false}
-									contentContainerClassName="gap-2"
-								>
-									{districts.data?.map((item) => (
-										<Pressable
-											key={item.id}
-											onPress={() => {
-												set("fuelDistrict", item.name);
-												set("fuelLocationId", String(item.id));
-											}}
-											className={`border-2 border-foreground px-3 py-2 ${form.fuelDistrict === item.name ? "bg-[#ff9fb2]" : "bg-background"}`}
-										>
-											<Text
-												className={`font-bold text-xs ${form.fuelDistrict === item.name ? "text-black" : "text-foreground"}`}
-											>
-												{item.name}
-											</Text>
-										</Pressable>
-									))}
-								</ScrollView>
+								<SelectField
+									label="State"
+									value={form.fuelState}
+									onChange={(value) => {
+										const option = states.data?.find(
+											(item) => item.name === value,
+										);
+										setStateChoice(option);
+										set("fuelState", value);
+										set("fuelDistrict", "");
+										set("fuelLocationId", "");
+									}}
+									items={[
+										{
+											label: states.isLoading
+												? "Loading states…"
+												: "Select state",
+											value: "",
+										},
+										...(states.data?.map((item) => ({
+											label: item.name,
+											value: item.name,
+										})) ?? []),
+									]}
+								/>
+								<SelectField
+									label="District / city"
+									value={form.fuelDistrict}
+									disabled={!activeState || districts.isLoading}
+									onChange={(value) => {
+										const option = districts.data?.find(
+											(item) => item.name === value,
+										);
+										set("fuelDistrict", value);
+										set("fuelLocationId", option ? String(option.id) : "");
+									}}
+									items={[
+										{
+											label: districts.isLoading
+												? "Loading districts…"
+												: "Select district",
+											value: "",
+										},
+										...(districts.data?.map((item) => ({
+											label: item.name,
+											value: item.name,
+										})) ?? []),
+									]}
+								/>
 							</>
 						)}
 						{mode === "person" && (
@@ -1136,59 +1176,62 @@ function Editor({
 										</Pressable>
 									))}
 								</View>
-								<Text className="font-black text-foreground text-sm">
-									State
-								</Text>
-								<ScrollView
-									horizontal
-									showsHorizontalScrollIndicator={false}
-									contentContainerClassName="gap-2"
-								>
-									{states.data?.map((item) => (
-										<Pressable
-											key={item.id}
-											onPress={() => {
-												setStateChoice(item);
-												set("fuelState", item.name);
-												set("fuelDistrict", "");
-											}}
-											className={`border-2 border-black px-3 py-2 ${form.fuelState === item.name ? "bg-[#8dc8ff]" : "bg-white"}`}
-										>
-											<Text className="font-bold text-black text-xs">
-												{item.name}
-											</Text>
-										</Pressable>
-									))}
-								</ScrollView>
-								<Text className="font-black text-foreground text-sm">
-									District / city
-								</Text>
-								<ScrollView
-									horizontal
-									showsHorizontalScrollIndicator={false}
-									contentContainerClassName="gap-2"
-								>
-									{districts.data?.map((item) => (
-										<Pressable
-											key={item.id}
-											onPress={() => {
-												set("fuelDistrict", item.name);
-												set("fuelLocationId", String(item.id));
-											}}
-											className={`border-2 border-black px-3 py-2 ${form.fuelDistrict === item.name ? "bg-[#ff9fb2]" : "bg-white"}`}
-										>
-											<Text className="font-bold text-black text-xs">
-												{item.name}
-											</Text>
-										</Pressable>
-									))}
-								</ScrollView>
+								<SelectField
+									label="State"
+									value={form.fuelState}
+									onChange={(value) => {
+										const option = states.data?.find(
+											(item) => item.name === value,
+										);
+										setStateChoice(option);
+										set("fuelState", value);
+										set("fuelDistrict", "");
+										set("fuelLocationId", "");
+									}}
+									items={[
+										{
+											label: states.isLoading
+												? "Loading states…"
+												: "Select state",
+											value: "",
+										},
+										...(states.data?.map((item) => ({
+											label: item.name,
+											value: item.name,
+										})) ?? []),
+									]}
+								/>
+								<SelectField
+									label="District / city"
+									value={form.fuelDistrict}
+									disabled={!activeState || districts.isLoading}
+									onChange={(value) => {
+										const option = districts.data?.find(
+											(item) => item.name === value,
+										);
+										set("fuelDistrict", value);
+										set("fuelLocationId", option ? String(option.id) : "");
+									}}
+									items={[
+										{
+											label: districts.isLoading
+												? "Loading districts…"
+												: "Select district",
+											value: "",
+										},
+										...(districts.data?.map((item) => ({
+											label: item.name,
+											value: item.name,
+										})) ?? []),
+									]}
+								/>
 							</>
 						)}
 						<Pressable
 							disabled={
 								busy ||
-								(mode === "group" && !form.fuelLocationId) ||
+								((mode === "group" || mode === "settings") &&
+									!form.fuelLocationId) ||
 								(mode === "payment" && !form.personId)
 							}
 							onPress={submit}

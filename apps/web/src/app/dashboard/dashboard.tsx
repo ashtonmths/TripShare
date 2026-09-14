@@ -1,7 +1,11 @@
 "use client";
 
 import type { AppRouter } from "@TripShare/api/routers/index";
-import { calculateFuelCost, formatRupees } from "@TripShare/shared";
+import {
+	allocateWeightedShares,
+	calculateFuelCost,
+	formatRupees,
+} from "@TripShare/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import {
@@ -358,6 +362,17 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const updateParticipantDirection = useMutation(
+		trpc.journeys.updateParticipantDirection.mutationOptions({
+			onSuccess: async () => {
+				toast.success("Journey split updated");
+				await queryClient.invalidateQueries({
+					queryKey: trpc.groups.detail.queryKey({ groupId: data.group.id }),
+				});
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 	return (
 		<>
 			<div className="ledger-header">
@@ -550,10 +565,33 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 										{j.distanceKm} km ·{" "}
 										{j.participants.map((p) => p.name).join(", ")}
 									</small>
+									<span className="journey-participants">
+										{j.participants.map((participant) => (
+											<label key={participant.personId}>
+												{participant.name}
+												<select
+													value={participant.direction}
+													disabled={updateParticipantDirection.isPending}
+													onChange={(event) =>
+														updateParticipantDirection.mutate({
+															journeyId: j.id,
+															personId: participant.personId,
+															direction: event.target.value as
+																| "one_way"
+																| "two_way",
+														})
+													}
+												>
+													<option value="one_way">One way</option>
+													<option value="two_way">Return</option>
+												</select>
+											</label>
+										))}
+									</span>
 								</span>
 								<span className="journey-cost">
 									<b>{formatRupees(j.fuelCostPaise)}</b>
-									<small>{formatRupees(j.sharePaise)} each</small>
+									<small>Split by route</small>
 								</span>
 							</article>
 						))}
@@ -588,6 +626,9 @@ function Panel({
 		fuelType: "petrol",
 	});
 	const [people, setPeople] = useState<string[]>([]);
+	const [personDirections, setPersonDirections] = useState<
+		Record<string, "one_way" | "two_way">
+	>({});
 	const [price, setPrice] = useState<number>();
 	const [fuelQuoteToken, setFuelQuoteToken] = useState<string>();
 	const [source, setSource] = useState<"mypetrolprice" | "manual">(
@@ -652,6 +693,20 @@ function Panel({
 				: undefined,
 		[data, distance, people.length, price],
 	);
+	const previewShares = useMemo(
+		() =>
+			preview
+				? allocateWeightedShares(
+						preview.fuelCostPaise,
+						people.map((id) => ({
+							id,
+							weight:
+								(personDirections[id] ?? form.direction) === "two_way" ? 2 : 1,
+						})),
+					)
+				: [],
+		[form.direction, people, personDirections, preview],
+	);
 	const submit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (kind === "group")
@@ -701,6 +756,12 @@ function Panel({
 				direction: form.direction as "one_way" | "two_way",
 				distanceKm: distance,
 				participantIds: people,
+				participantDirections: people.map((personId) => ({
+					personId,
+					direction:
+						personDirections[personId] ??
+						(form.direction as "one_way" | "two_way"),
+				})),
 				petrolPricePaise: price,
 				petrolPriceSource: source,
 				fuelQuoteToken,
@@ -922,6 +983,8 @@ function Panel({
 												(item) => item.name === e.target.value,
 											);
 											set("fuelState", e.target.value);
+											set("fuelDistrict", "");
+											set("fuelLocationId", "");
 											setFuelStateChoice(option);
 										}}
 									>
@@ -1035,6 +1098,7 @@ function Panel({
 										value={form.direction}
 										onChange={(e) => {
 											const v = e.target.value;
+											setPersonDirections({});
 											set("direction", v);
 											set(
 												"distanceKm",
@@ -1084,6 +1148,38 @@ function Panel({
 										))}
 								</div>
 							</fieldset>
+							{form.direction === "two_way" && people.length > 0 && (
+								<fieldset>
+									<legend>Each person&apos;s route</legend>
+									<div className="participant-routes">
+										{people.map((personId) => (
+											<label key={personId}>
+												<span>
+													{
+														data?.people.find(
+															(person) => person.id === personId,
+														)?.name
+													}
+												</span>
+												<select
+													value={personDirections[personId] ?? "two_way"}
+													onChange={(event) =>
+														setPersonDirections((old) => ({
+															...old,
+															[personId]: event.target.value as
+																| "one_way"
+																| "two_way",
+														}))
+													}
+												>
+													<option value="one_way">One way</option>
+													<option value="two_way">Return</option>
+												</select>
+											</label>
+										))}
+									</div>
+								</fieldset>
+							)}
 							<div className="fuel-box">
 								<div>
 									<Fuel size={20} />
@@ -1130,8 +1226,16 @@ function Panel({
 										<strong>{formatRupees(preview.fuelCostPaise)}</strong>
 									</span>
 									<span>
-										<small>Per person</small>
-										<strong>{formatRupees(preview.sharePaise)}</strong>
+										<small>Individual shares</small>
+										{previewShares.map((share) => (
+											<strong key={share.id}>
+												{
+													data?.people.find((person) => person.id === share.id)
+														?.name
+												}
+												: {formatRupees(share.sharePaise)}
+											</strong>
+										))}
 									</span>
 								</div>
 							)}

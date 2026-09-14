@@ -143,6 +143,7 @@ export const journeyParticipant = pgTable(
 			.notNull()
 			.references(() => person.id, { onDelete: "restrict" }),
 		sharePaise: integer("share_paise").notNull(),
+		direction: journeyDirection("direction").notNull(),
 	},
 	(table) => [
 		uniqueIndex("journey_participant_uidx").on(table.journeyId, table.personId),

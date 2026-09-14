@@ -1,4 +1,8 @@
-import { calculateFuelCost, formatRupees } from "@TripShare/shared";
+import {
+	allocateWeightedShares,
+	calculateFuelCost,
+	formatRupees,
+} from "@TripShare/shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -52,6 +56,9 @@ export default function AddRide() {
 	const [manual, setManual] = useState("");
 	const [showManual, setShowManual] = useState(false);
 	const [people, setPeople] = useState<string[]>([]);
+	const [personDirections, setPersonDirections] = useState<
+		Record<string, "one_way" | "two_way">
+	>({});
 	const [twoWay, setTwoWay] = useState(false);
 	const [distance, setDistance] = useState("");
 	const [journeyDate, setJourneyDate] = useState(isoDay());
@@ -75,11 +82,29 @@ export default function AddRide() {
 				: undefined,
 		[detail.data, km, people.length, price],
 	);
+	const shares = useMemo(
+		() =>
+			cost
+				? allocateWeightedShares(
+						cost.fuelCostPaise,
+						people.map((id) => ({
+							id,
+							weight:
+								(personDirections[id] ?? (twoWay ? "two_way" : "one_way")) ===
+								"two_way"
+									? 2
+									: 1,
+						})),
+					)
+				: [],
+		[cost, people, personDirections, twoWay],
+	);
 	const save = useMutation(
 		trpc.journeys.create.mutationOptions({
 			onSuccess: async () => {
 				Alert.alert("Ride saved", "Everyone’s balance is up to date.");
 				setPeople([]);
+				setPersonDirections({});
 				setPrice(undefined);
 				setQuote(undefined);
 				setManual("");
@@ -91,6 +116,7 @@ export default function AddRide() {
 	const switchTrip = (id: string) => {
 		setGroupId(id);
 		setPeople([]);
+		setPersonDirections({});
 		setPrice(undefined);
 		setQuote(undefined);
 		setDistance("");
@@ -230,6 +256,7 @@ export default function AddRide() {
 					selected={!twoWay}
 					onPress={() => {
 						setTwoWay(false);
+						setPersonDirections({});
 						setDistance("");
 					}}
 				/>
@@ -238,6 +265,7 @@ export default function AddRide() {
 					selected={twoWay}
 					onPress={() => {
 						setTwoWay(true);
+						setPersonDirections({});
 						setDistance("");
 					}}
 				/>
@@ -279,6 +307,46 @@ export default function AddRide() {
 						</Pressable>
 					))}
 			</View>
+			{twoWay && people.length > 0 && (
+				<View className="mt-3 gap-2">
+					<Text className="font-bold text-foreground text-xs">
+						EACH PERSON'S ROUTE
+					</Text>
+					{people.map((personId) => {
+						const member = detail.data?.people.find(
+							(item) => item.id === personId,
+						);
+						return (
+							<View
+								key={personId}
+								className="flex-row items-center gap-2 border-2 border-foreground bg-background p-2"
+							>
+								<Text className="flex-1 font-black text-foreground">
+									{member?.name}
+								</Text>
+								{(["one_way", "two_way"] as const).map((direction) => (
+									<Pressable
+										key={direction}
+										onPress={() =>
+											setPersonDirections((old) => ({
+												...old,
+												[personId]: direction,
+											}))
+										}
+										className={`border-2 border-foreground px-2 py-2 ${(personDirections[personId] ?? "two_way") === direction ? "bg-[#8dc8ff]" : "bg-background"}`}
+									>
+										<Text
+											className={`font-bold text-xs ${(personDirections[personId] ?? "two_way") === direction ? "text-black" : "text-foreground"}`}
+										>
+											{direction === "one_way" ? "One way" : "Return"}
+										</Text>
+									</Pressable>
+								))}
+							</View>
+						);
+					})}
+				</View>
+			)}
 			{detail.data && !detail.data.people.length && (
 				<Text className="text-muted">
 					Add a partner from the Trips tab first.
@@ -349,10 +417,13 @@ export default function AddRide() {
 						</Text>
 					</View>
 					<View className="flex-1">
-						<Text className="font-black text-black text-xs">PER PERSON</Text>
-						<Text className="font-black text-2xl text-black">
-							{formatRupees(cost.sharePaise)}
-						</Text>
+						<Text className="font-black text-black text-xs">SPLIT</Text>
+						{shares.map((share) => (
+							<Text key={share.id} className="font-bold text-black text-sm">
+								{detail.data?.people.find((item) => item.id === share.id)?.name}
+								: {formatRupees(share.sharePaise)}
+							</Text>
+						))}
 					</View>
 				</View>
 			)}
@@ -367,6 +438,11 @@ export default function AddRide() {
 						direction: twoWay ? "two_way" : "one_way",
 						distanceKm: km,
 						participantIds: people,
+						participantDirections: people.map((personId) => ({
+							personId,
+							direction:
+								personDirections[personId] ?? (twoWay ? "two_way" : "one_way"),
+						})),
 						petrolPricePaise: price,
 						petrolPriceSource: quote ? "mypetrolprice" : "manual",
 						fuelQuoteToken: quote,

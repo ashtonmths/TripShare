@@ -29,6 +29,13 @@
       "when": 1789396505825,
       "tag": "0003_app_releases",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789401954320,
+      "tag": "0004_participant_directions",
+      "breakpoints": true
     }
   ]
 }

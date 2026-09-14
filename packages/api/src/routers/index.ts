@@ -11,6 +11,7 @@ import {
 	person,
 } from "@TripShare/db/schema/tripshare";
 import {
+	allocateWeightedShares,
 	calculateBalances,
 	calculateFuelCost,
 	directionSchema,
@@ -294,6 +295,7 @@ export const groupRouter = router({
 							journeyId: journeyParticipant.journeyId,
 							personId: journeyParticipant.personId,
 							sharePaise: journeyParticipant.sharePaise,
+							direction: journeyParticipant.direction,
 							name: person.name,
 						})
 						.from(journeyParticipant)
@@ -487,6 +489,10 @@ export const journeyRouter = router({
 				direction: directionSchema,
 				distanceKm: positive.max(4000),
 				participantIds: z.array(id).min(1).max(MAX_PARTICIPANTS),
+				participantDirections: z
+					.array(z.object({ personId: id, direction: directionSchema }))
+					.max(MAX_PARTICIPANTS)
+					.optional(),
 				petrolPricePaise: z
 					.number()
 					.int()
@@ -519,6 +525,21 @@ export const journeyRouter = router({
 					message: `Journey date cannot be before ${record.startDate}`,
 				});
 			const uniqueIds = [...new Set(input.participantIds)];
+			const directionByPerson = new Map(
+				input.participantDirections?.map((item) => [
+					item.personId,
+					item.direction,
+				]),
+			);
+			if (
+				[...directionByPerson.keys()].some(
+					(personId) => !uniqueIds.includes(personId),
+				)
+			)
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Participant directions must belong to selected people",
+				});
 			const validPeople = await ctx.db
 				.select({ id: person.id })
 				.from(person)
@@ -541,6 +562,16 @@ export const journeyRouter = router({
 				petrolPricePaise: input.petrolPricePaise,
 				participantCount: uniqueIds.length,
 			});
+			const shares = allocateWeightedShares(
+				costs.fuelCostPaise,
+				uniqueIds.map((personId) => ({
+					id: personId,
+					weight:
+						(directionByPerson.get(personId) ?? input.direction) === "two_way"
+							? 2
+							: 1,
+				})),
+			);
 			return ctx.db.transaction(async (tx) => {
 				const journeyId = crypto.randomUUID();
 				const [created] = await tx
@@ -560,15 +591,94 @@ export const journeyRouter = router({
 					})
 					.returning();
 				await tx.insert(journeyParticipant).values(
-					uniqueIds.map((personId, index) => ({
+					uniqueIds.map((personId) => ({
 						journeyId,
 						personId,
+						direction: directionByPerson.get(personId) ?? input.direction,
 						sharePaise:
-							costs.sharePaise + (index < costs.remainderPaise ? 1 : 0),
+							shares.find((share) => share.id === personId)?.sharePaise ?? 0,
 					})),
 				);
 				return created;
 			});
+		}),
+	updateParticipantDirection: protectedProcedure
+		.input(
+			z.object({
+				journeyId: id,
+				personId: id,
+				direction: directionSchema,
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [record] = await ctx.db
+				.select({
+					id: journey.id,
+					groupId: journey.groupId,
+					fuelCostPaise: journey.fuelCostPaise,
+					direction: journey.direction,
+				})
+				.from(journey)
+				.innerJoin(group, eq(group.id, journey.groupId))
+				.where(
+					and(
+						eq(journey.id, input.journeyId),
+						eq(group.ownerId, ctx.session.user.id),
+					),
+				)
+				.limit(1);
+			if (!record)
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Journey not found",
+				});
+			if (record.direction === "one_way" && input.direction === "two_way")
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "A one-way journey cannot contain a return passenger",
+				});
+			const participants = await ctx.db
+				.select({
+					personId: journeyParticipant.personId,
+					direction: journeyParticipant.direction,
+				})
+				.from(journeyParticipant)
+				.where(eq(journeyParticipant.journeyId, record.id));
+			if (!participants.some((item) => item.personId === input.personId))
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Participant not found",
+				});
+			const updated = participants.map((item) => ({
+				id: item.personId,
+				direction:
+					item.personId === input.personId ? input.direction : item.direction,
+				weight:
+					(item.personId === input.personId
+						? input.direction
+						: item.direction) === "two_way"
+						? (2 as const)
+						: (1 as const),
+			}));
+			const shares = allocateWeightedShares(record.fuelCostPaise, updated);
+			await ctx.db.transaction(async (tx) => {
+				for (const item of updated) {
+					await tx
+						.update(journeyParticipant)
+						.set({
+							direction: item.direction,
+							sharePaise:
+								shares.find((share) => share.id === item.id)?.sharePaise ?? 0,
+						})
+						.where(
+							and(
+								eq(journeyParticipant.journeyId, record.id),
+								eq(journeyParticipant.personId, item.id),
+							),
+						);
+				}
+			});
+			return { success: true };
 		}),
 });
 
@@ -675,7 +785,7 @@ export const sharedTripRouter = router({
 				.select({
 					id: journey.id,
 					journeyDate: journey.journeyDate,
-					direction: journey.direction,
+					direction: journeyParticipant.direction,
 					distanceKm: journey.distanceKm,
 					sharePaise: journeyParticipant.sharePaise,
 					correctionId: correctionRequest.id,
@@ -884,7 +994,10 @@ export const correctionRouter = router({
 			return ctx.db.transaction(async (tx) => {
 				if (input.status === "approved") {
 					const remaining = await tx
-						.select({ personId: journeyParticipant.personId })
+						.select({
+							personId: journeyParticipant.personId,
+							direction: journeyParticipant.direction,
+						})
 						.from(journeyParticipant)
 						.where(
 							and(
@@ -907,8 +1020,13 @@ export const correctionRouter = router({
 							code: "NOT_FOUND",
 							message: "Journey not found",
 						});
-					const baseShare = Math.floor(ride.fuelCostPaise / remaining.length);
-					const remainder = ride.fuelCostPaise % remaining.length;
+					const weightedShares = allocateWeightedShares(
+						ride.fuelCostPaise,
+						remaining.map((member) => ({
+							id: member.personId,
+							weight: member.direction === "two_way" ? 2 : 1,
+						})),
+					);
 					await tx
 						.delete(journeyParticipant)
 						.where(
@@ -917,10 +1035,14 @@ export const correctionRouter = router({
 								eq(journeyParticipant.personId, request.personId),
 							),
 						);
-					for (const [index, member] of remaining.entries())
+					for (const member of remaining)
 						await tx
 							.update(journeyParticipant)
-							.set({ sharePaise: baseShare + (index < remainder ? 1 : 0) })
+							.set({
+								sharePaise:
+									weightedShares.find((share) => share.id === member.personId)
+										?.sharePaise ?? 0,
+							})
 							.where(
 								and(
 									eq(journeyParticipant.journeyId, request.journeyId),
@@ -929,7 +1051,10 @@ export const correctionRouter = router({
 							);
 					await tx
 						.update(journey)
-						.set({ participantCount: remaining.length, sharePaise: baseShare })
+						.set({
+							participantCount: remaining.length,
+							sharePaise: Math.floor(ride.fuelCostPaise / remaining.length),
+						})
 						.where(eq(journey.id, request.journeyId));
 				}
 				const [updated] = await tx

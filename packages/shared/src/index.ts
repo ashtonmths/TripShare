@@ -46,6 +46,26 @@ export function calculateFuelCost(input: {
 	return { fuelCostPaise, sharePaise: baseShare, remainderPaise: remainder };
 }
 
+export function allocateWeightedShares(
+	fuelCostPaise: number,
+	participants: Array<{ id: string; weight: 1 | 2 }>,
+) {
+	if (!Number.isInteger(fuelCostPaise) || fuelCostPaise < 0)
+		throw new Error("Fuel cost must be a non-negative integer");
+	if (!participants.length)
+		throw new Error("At least one participant is required");
+	const totalWeight = participants.reduce((sum, item) => sum + item.weight, 0);
+	let allocated = 0;
+	return participants.map((item, index) => {
+		const sharePaise =
+			index === participants.length - 1
+				? fuelCostPaise - allocated
+				: Math.floor((fuelCostPaise * item.weight) / totalWeight);
+		allocated += sharePaise;
+		return { id: item.id, sharePaise };
+	});
+}
+
 export function formatRupees(paise: number) {
 	return new Intl.NumberFormat("en-IN", {
 		style: "currency",

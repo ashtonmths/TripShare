@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { calculateBalances, calculateFuelCost, isoDateSchema } from "./index";
+import {
+	allocateWeightedShares,
+	calculateBalances,
+	calculateFuelCost,
+	isoDateSchema,
+} from "./index";
 
 test("calculates and splits fuel cost in paise", () => {
 	assert.deepEqual(
@@ -28,6 +33,19 @@ test("calculates balances after partial payments", () => {
 				paidPaise: 3_000,
 				balancePaise: 7_000,
 			},
+		],
+	);
+});
+
+test("weights return passengers at twice a one-way passenger", () => {
+	assert.deepEqual(
+		allocateWeightedShares(300, [
+			{ id: "one-way", weight: 1 },
+			{ id: "return", weight: 2 },
+		]),
+		[
+			{ id: "one-way", sharePaise: 100 },
+			{ id: "return", sharePaise: 200 },
 		],
 	);
 });
