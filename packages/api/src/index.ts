@@ -49,3 +49,14 @@ export const protectedProcedure = t.procedure
 			},
 		});
 	});
+
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+	const email = ctx.session.user.email.trim().toLowerCase();
+	if (!ctx.adminEmails.includes(email)) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Administrator access required",
+		});
+	}
+	return next({ ctx });
+});

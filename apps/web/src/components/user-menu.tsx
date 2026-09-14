@@ -57,6 +57,11 @@ export default function UserMenu() {
 					<DropdownMenuLabel>My Account</DropdownMenuLabel>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+					{session.user.email.toLowerCase() === "mathiasashton07@gmail.com" && (
+						<DropdownMenuItem render={<Link href="/admin" />}>
+							Admin panel
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={async () => {
 							const name = window.prompt("Display name", session.user.name);

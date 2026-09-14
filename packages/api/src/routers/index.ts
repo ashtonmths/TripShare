@@ -1,5 +1,7 @@
 import type { Database } from "@TripShare/db";
+import { user } from "@TripShare/db/schema/auth";
 import {
+	appRelease,
 	correctionRequest,
 	group,
 	journey,
@@ -20,7 +22,12 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { protectedProcedure, publicProcedure, router } from "../index";
+import {
+	adminProcedure,
+	protectedProcedure,
+	publicProcedure,
+	router,
+} from "../index";
 
 const id = z.string().uuid();
 const positive = z.number().finite().positive();
@@ -935,8 +942,99 @@ export const correctionRouter = router({
 		}),
 });
 
+const releasePlatform = z.enum(["android", "ios"]);
+const releaseVersion = z
+	.string()
+	.trim()
+	.regex(/^\d+\.\d+\.\d+$/, "Use a semantic version such as 1.2.0");
+const secureDownloadUrl = z
+	.string()
+	.url()
+	.max(2048)
+	.refine((value) => new URL(value).protocol === "https:", "HTTPS is required");
+
+export const releaseRouter = router({
+	latest: publicProcedure
+		.input(z.object({ platform: releasePlatform.default("android") }))
+		.query(async ({ ctx, input }) => {
+			const [latest] = await ctx.db
+				.select({
+					platform: appRelease.platform,
+					version: appRelease.version,
+					downloadUrl: appRelease.downloadUrl,
+					notes: appRelease.notes,
+					publishedAt: appRelease.publishedAt,
+				})
+				.from(appRelease)
+				.where(eq(appRelease.platform, input.platform))
+				.orderBy(desc(appRelease.publishedAt))
+				.limit(1);
+			return latest ?? null;
+		}),
+});
+
+export const adminRouter = router({
+	overview: adminProcedure.query(async ({ ctx }) => {
+		const [users, trips, releases] = await Promise.all([
+			ctx.db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					image: user.image,
+					createdAt: user.createdAt,
+				})
+				.from(user)
+				.orderBy(desc(user.createdAt)),
+			ctx.db
+				.select({
+					id: group.id,
+					name: group.name,
+					vehicleName: group.vehicleName,
+					fuelType: group.fuelType,
+					fuelDistrict: group.fuelDistrict,
+					ownerId: group.ownerId,
+					ownerName: user.name,
+					ownerEmail: user.email,
+					createdAt: group.createdAt,
+				})
+				.from(group)
+				.innerJoin(user, eq(user.id, group.ownerId))
+				.orderBy(desc(group.createdAt)),
+			ctx.db
+				.select()
+				.from(appRelease)
+				.orderBy(desc(appRelease.publishedAt))
+				.limit(20),
+		]);
+		return { users, trips, releases };
+	}),
+	publishRelease: adminProcedure
+		.input(
+			z.object({
+				platform: releasePlatform,
+				version: releaseVersion,
+				downloadUrl: secureDownloadUrl,
+				notes: z.string().trim().max(500).optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const [created] = await ctx.db
+				.insert(appRelease)
+				.values({
+					id: crypto.randomUUID(),
+					...input,
+					publishedBy: ctx.session.user.id,
+				})
+				.returning();
+			return created;
+		}),
+});
+
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => "OK"),
+	admin: adminRouter,
+	releases: releaseRouter,
 	groups: groupRouter,
 	people: peopleRouter,
 	fuel: fuelRouter,

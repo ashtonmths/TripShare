@@ -35,6 +35,29 @@ export const paymentMethod = pgEnum("payment_method", [
 	"other",
 ]);
 
+export const appRelease = pgTable(
+	"app_release",
+	{
+		id: text("id").primaryKey(),
+		platform: text("platform").notNull(),
+		version: text("version").notNull(),
+		downloadUrl: text("download_url").notNull(),
+		notes: text("notes"),
+		publishedBy: text("published_by")
+			.notNull()
+			.references(() => user.id, { onDelete: "restrict" }),
+		publishedAt: timestamp("published_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("app_release_platform_published_idx").on(
+			table.platform,
+			table.publishedAt,
+		),
+	],
+);
+
 export const group = pgTable(
 	"carpool_group",
 	{

@@ -230,6 +230,21 @@ a:active {
 	transform: translate(-1px, -1px);
 	box-shadow: 5px 5px 0 var(--ink);
 }
+.download-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	border: var(--hard-border);
+	background: var(--blue);
+	color: #171717;
+	padding: 11px 15px;
+	font-weight: 900;
+	box-shadow: 3px 3px 0 var(--ink);
+}
+.download-button:disabled {
+	opacity: 0.65;
+}
 .primary-button:disabled {
 	opacity: 0.45;
 }
@@ -275,6 +290,55 @@ a:active {
 	width: min(1180px, calc(100% - 32px));
 	margin: auto;
 	padding: 42px 0 80px;
+}
+.admin-shell {
+	display: grid;
+	gap: 28px;
+}
+.admin-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+}
+.admin-release-card,
+.admin-users {
+	display: grid;
+	align-content: start;
+	gap: 18px;
+	border: var(--hard-border);
+	background: var(--background);
+	padding: 22px;
+	box-shadow: 5px 5px 0 var(--ink);
+}
+.admin-release-row,
+.admin-user-card,
+.admin-trip-list > div {
+	display: grid;
+	gap: 4px;
+	border: var(--hard-border);
+	background: var(--paper);
+	color: var(--ink);
+	padding: 13px;
+}
+.admin-release-row small,
+.admin-user-card small {
+	color: var(--muted-ink);
+}
+.admin-user-card {
+	grid-template-columns: 1fr auto;
+	margin-top: 12px;
+}
+.admin-user-card > div:first-child {
+	display: grid;
+}
+.admin-user-card > span {
+	font-weight: 900;
+}
+.admin-trip-list {
+	grid-column: 1 / -1;
+	display: grid;
+	gap: 8px;
+	margin-top: 6px;
 }
 .dashboard-heading {
 	display: flex;
@@ -868,6 +932,9 @@ legend {
 }
 
 @media (max-width: 760px) {
+	.admin-grid {
+		grid-template-columns: 1fr;
+	}
 	.site-header {
 		padding: 8px 12px;
 	}
