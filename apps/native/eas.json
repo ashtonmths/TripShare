@@ -20,6 +20,13 @@
 			"environment": "production",
 			"channel": "production",
 			"uploadSourceMaps": true
+		},
+		"production-apk": {
+			"extends": "production",
+			"distribution": "internal",
+			"android": {
+				"buildType": "apk"
+			}
 		}
 	},
 	"submit": {

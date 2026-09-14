@@ -30,6 +30,7 @@
 		"@trpc/tanstack-react-query": "catalog:",
 		"better-auth": "catalog:",
 		"expo": "~57.0.20",
+		"expo-application": "~57.0.3",
 		"expo-build-properties": "~57.0.17",
 		"expo-constants": "~57.0.17",
 		"expo-font": "~57.0.3",

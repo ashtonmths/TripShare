@@ -14,6 +14,7 @@ import { Pressable, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { AppLoading } from "@/components/app-loading";
+import { AppUpdatePrompt } from "@/components/app-update-prompt";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { queryClient } from "@/utils/trpc";
 
@@ -62,7 +63,10 @@ function RootLayout() {
 				<KeyboardProvider>
 					<AppThemeProvider>
 						<HeroUINativeProvider>
-							<StackLayout />
+							<View style={{ flex: 1 }}>
+								<StackLayout />
+								<AppUpdatePrompt />
+							</View>
 						</HeroUINativeProvider>
 					</AppThemeProvider>
 				</KeyboardProvider>
