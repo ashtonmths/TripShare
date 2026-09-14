@@ -2,12 +2,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Alert, Image, Pressable, Text, TextInput, View } from "react-native";
 import { Container } from "@/components/container";
+import { useObserveReady } from "@/hooks/use-observe-ready";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient } from "@/utils/trpc";
 
 export default function Profile() {
-	const { data: session } = authClient.useSession();
+	const { data: session, isPending } = authClient.useSession();
+	useObserveReady(!isPending && Boolean(session));
 	const [name, setName] = useState(session?.user.name ?? "");
 	const [saving, setSaving] = useState(false);
 	if (!session) return null;

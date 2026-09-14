@@ -18,7 +18,8 @@
 		"production": {
 			"autoIncrement": true,
 			"environment": "production",
-			"channel": "production"
+			"channel": "production",
+			"uploadSourceMaps": true
 		}
 	},
 	"submit": {

@@ -7,6 +7,7 @@ import { Image, Pressable, Text, View } from "react-native";
 import { AppLoading } from "@/components/app-loading";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
+import { useObserveReady } from "@/hooks/use-observe-ready";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { trpc } from "@/utils/trpc";
@@ -24,6 +25,9 @@ export function Home({ inTabs = false }: { inTabs?: boolean }) {
 		...trpc.sharedTrips.list.queryOptions(),
 		enabled: Boolean(session),
 	});
+	useObserveReady(
+		!isPending && (!session || (!dashboard.isLoading && !shared.isLoading)),
+	);
 	if (isPending) return <AppLoading />;
 	if (!session)
 		return (

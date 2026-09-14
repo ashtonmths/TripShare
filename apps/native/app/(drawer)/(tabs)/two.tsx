@@ -13,6 +13,7 @@ import {
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
+import { useObserveReady } from "@/hooks/use-observe-ready";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
@@ -55,6 +56,9 @@ export default function AddRide() {
 	const [distance, setDistance] = useState("");
 	const [journeyDate, setJourneyDate] = useState(isoDay());
 	const [showDatePicker, setShowDatePicker] = useState(false);
+	useObserveReady(
+		Boolean(session) && !groups.isLoading && (!currentId || !detail.isLoading),
+	);
 	const km = Number(
 		distance ||
 			Number(detail.data?.group.normalOneWayKm ?? 0) * (twoWay ? 2 : 1),

@@ -20,6 +20,7 @@ import {
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
+import { useObserveReady } from "@/hooks/use-observe-ready";
 import { authClient } from "@/lib/auth-client";
 import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
@@ -382,6 +383,13 @@ export default function Trips() {
 	});
 	const [mode, setMode] = useState<Mode>();
 	const [editingPersonId, setEditingPersonId] = useState<string>();
+	useObserveReady(
+		Boolean(session) &&
+			!groups.isLoading &&
+			!shared.isLoading &&
+			(!groupId || !detail.isLoading) &&
+			(!sharedSelected || !sharedDetail.isLoading),
+	);
 	const refresh = async () => {
 		await queryClient.invalidateQueries();
 		setMode(undefined);
