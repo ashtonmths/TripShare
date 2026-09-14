@@ -1,10 +1,5 @@
-import {
-	ArrowRight,
-	Fuel,
-	ReceiptIndianRupee,
-	ShieldCheck,
-} from "lucide-react";
-import Link from "next/link";
+import { Fuel, ReceiptIndianRupee, ShieldCheck } from "lucide-react";
+import { HomeActions } from "@/components/home-actions";
 
 export default function Home() {
 	return (
@@ -20,12 +15,7 @@ export default function Home() {
 					TripShare keeps a private record of every journey, current local fuel
 					prices, and what each person still owes.
 				</p>
-				<div className="hero-actions">
-					<Link className="primary-button" href="/dashboard">
-						Open your ledger <ArrowRight size={17} />
-					</Link>
-					<Link href="/login">Sign in with Google</Link>
-				</div>
+				<HomeActions />
 			</section>
 			<section className="feature-strip">
 				<article>

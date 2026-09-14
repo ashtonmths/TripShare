@@ -518,7 +518,7 @@ export default function Trips() {
 					</View>
 					<SectionTitle title="Balances" />
 					{!detail.data.people.length ? (
-						<Empty text="Add a partner to start splitting rides." />
+						<Empty text="Add a person to start splitting rides." />
 					) : (
 						<View className="border-2 border-foreground bg-background p-2">
 							{detail.data.people.map((member) => {
@@ -916,8 +916,8 @@ function Editor({
 								? "New trip"
 								: mode === "person"
 									? editingPersonId
-										? "Edit partner"
-										: "Add partner"
+										? "Edit person"
+										: "Add a person"
 									: mode === "payment"
 										? "Record payment"
 										: "Trip settings"}

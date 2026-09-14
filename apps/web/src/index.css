@@ -127,11 +127,14 @@ a:active {
 	border: 2px solid var(--ink);
 	border-radius: 50%;
 	background-color: var(--blue);
-	background-position: center;
-	background-size: cover;
 	color: #171717;
 	font-size: 11px;
 	font-weight: 900;
+}
+.user-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 .nav-actions button,
 .nav-actions a {
@@ -430,6 +433,12 @@ a:active {
 	font-weight: 850;
 	box-shadow: 3px 3px 0 var(--ink);
 }
+.fuel-box > button {
+	border-color: #171717;
+	background: #fffaf0;
+	color: #171717;
+	box-shadow: 3px 3px 0 #171717;
+}
 .ledger-pane section {
 	padding-top: 27px;
 }
@@ -459,6 +468,15 @@ a:active {
 .balance-list,
 .journey-list {
 	margin-top: 10px;
+}
+.balance-list {
+	padding: 0 14px;
+	border: var(--hard-border);
+	background: var(--paper);
+	box-shadow: 4px 4px 0 var(--ink);
+}
+.balance-list .balance-row:last-child {
+	border-bottom: 0;
 }
 .balance-row,
 .journey-row {

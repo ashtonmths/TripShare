@@ -432,55 +432,54 @@ function Ledger({ data, act }: { data: Detail; act: (a: Action) => void }) {
 					<p className="muted">No pending payment claims.</p>
 				)}
 			</section>
-			<section>
-				<div className="section-title">
-					<div>
-						<p className="eyebrow">Corrections</p>
-						<h3>Attendance requests</h3>
+			{data.corrections.some((item) => item.status === "pending") && (
+				<section>
+					<div className="section-title">
+						<div>
+							<p className="eyebrow">Corrections</p>
+							<h3>Attendance requests</h3>
+						</div>
 					</div>
-				</div>
-				{data.corrections
-					.filter((item) => item.status === "pending")
-					.map((item) => (
-						<article className="journey-row" key={item.id}>
-							<span className="journey-copy">
-								<b>{item.personName}</b>
-								<small>
-									{item.note || "Says they did not join this journey."}
-								</small>
-							</span>
-							<span className="button-row">
-								<button
-									type="button"
-									onClick={() =>
-										resolve.mutate({
-											groupId: data.group.id,
-											correctionId: item.id,
-											status: "approved",
-										})
-									}
-								>
-									Approve
-								</button>
-								<button
-									type="button"
-									onClick={() =>
-										resolve.mutate({
-											groupId: data.group.id,
-											correctionId: item.id,
-											status: "rejected",
-										})
-									}
-								>
-									Reject
-								</button>
-							</span>
-						</article>
-					))}
-				{!data.corrections.some((item) => item.status === "pending") && (
-					<p className="muted">No pending corrections.</p>
-				)}
-			</section>
+					{data.corrections
+						.filter((item) => item.status === "pending")
+						.map((item) => (
+							<article className="journey-row" key={item.id}>
+								<span className="journey-copy">
+									<b>{item.personName}</b>
+									<small>
+										{item.note || "Says they did not join this journey."}
+									</small>
+								</span>
+								<span className="button-row">
+									<button
+										type="button"
+										onClick={() =>
+											resolve.mutate({
+												groupId: data.group.id,
+												correctionId: item.id,
+												status: "approved",
+											})
+										}
+									>
+										Approve
+									</button>
+									<button
+										type="button"
+										onClick={() =>
+											resolve.mutate({
+												groupId: data.group.id,
+												correctionId: item.id,
+												status: "rejected",
+											})
+										}
+									>
+										Reject
+									</button>
+								</span>
+							</article>
+						))}
+				</section>
+			)}
 			<section>
 				<div className="section-title">
 					<div>
@@ -586,6 +585,7 @@ function Panel({
 		paidOn: today(),
 		direction: "one_way",
 		method: "upi",
+		fuelType: "petrol",
 	});
 	const [people, setPeople] = useState<string[]>([]);
 	const [price, setPrice] = useState<number>();
@@ -618,7 +618,7 @@ function Panel({
 	);
 	const fuelStates = useQuery({
 		...trpc.fuel.states.queryOptions(),
-		enabled: kind === "settings",
+		enabled: kind === "settings" || kind === "group",
 		staleTime: 86_400_000,
 	});
 	const defaultFuelState = fuelStates.data?.find(
@@ -630,7 +630,8 @@ function Panel({
 			stateId: activeFuelState?.id ?? 1,
 			stateSlug: activeFuelState?.slug ?? "India",
 		}),
-		enabled: kind === "settings" && Boolean(activeFuelState),
+		enabled:
+			(kind === "settings" || kind === "group") && Boolean(activeFuelState),
 		staleTime: 86_400_000,
 	});
 	const fuel = useQuery({
@@ -660,6 +661,10 @@ function Panel({
 				mileageKmpl: Number(form.mileage),
 				normalOneWayKm: Number(form.distance),
 				startDate: form.startDate ?? today(),
+				fuelType: form.fuelType as "petrol" | "diesel",
+				fuelState: form.fuelState,
+				fuelDistrict: form.fuelDistrict,
+				fuelLocationId: Number(form.fuelLocationId),
 			});
 		if (kind === "person" && groupId)
 			newPerson.mutate({
@@ -794,6 +799,64 @@ function Panel({
 							<p className="hint">
 								The start date is private and prevents accidental backdating.
 							</p>
+							<Field label="Fuel type">
+								<select
+									value={form.fuelType}
+									onChange={(e) => set("fuelType", e.target.value)}
+								>
+									<option value="petrol">Petrol</option>
+									<option value="diesel">Diesel</option>
+								</select>
+							</Field>
+							<div className="form-grid">
+								<Field label="State">
+									<select
+										required
+										value={form.fuelState ?? ""}
+										onChange={(e) => {
+											const option = fuelStates.data?.find(
+												(item) => item.name === e.target.value,
+											);
+											set("fuelState", e.target.value);
+											set("fuelDistrict", "");
+											set("fuelLocationId", "");
+											setFuelStateChoice(option);
+										}}
+									>
+										<option value="" disabled>
+											Select state
+										</option>
+										{fuelStates.data?.map((item) => (
+											<option key={item.id} value={item.name}>
+												{item.name}
+											</option>
+										))}
+									</select>
+								</Field>
+								<Field label="District / city">
+									<select
+										required
+										disabled={!activeFuelState}
+										value={form.fuelDistrict ?? ""}
+										onChange={(e) => {
+											const option = fuelDistricts.data?.find(
+												(item) => item.name === e.target.value,
+											);
+											set("fuelDistrict", e.target.value);
+											if (option) set("fuelLocationId", String(option.id));
+										}}
+									>
+										<option value="" disabled>
+											Select district
+										</option>
+										{fuelDistricts.data?.map((item) => (
+											<option key={item.id} value={item.name}>
+												{item.name}
+											</option>
+										))}
+									</select>
+								</Field>
+							</div>
 						</>
 					)}
 					{kind === "person" && (

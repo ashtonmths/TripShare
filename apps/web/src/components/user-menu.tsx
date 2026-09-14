@@ -9,6 +9,7 @@ import {
 	DropdownMenuTrigger,
 } from "@TripShare/ui/components/dropdown-menu";
 import { Skeleton } from "@TripShare/ui/components/skeleton";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -36,17 +37,18 @@ export default function UserMenu() {
 			<DropdownMenuTrigger
 				render={<Button className="user-trigger" variant="outline" />}
 			>
-				<span
-					className="user-avatar"
-					style={
-						session.user.image
-							? { backgroundImage: `url(${session.user.image})` }
-							: undefined
-					}
-				>
-					{session.user.image
-						? ""
-						: session.user.name.slice(0, 1).toUpperCase()}
+				<span className="user-avatar">
+					{session.user.image ? (
+						<Image
+							src={session.user.image}
+							alt=""
+							width={24}
+							height={24}
+							unoptimized
+						/>
+					) : (
+						session.user.name.slice(0, 1).toUpperCase()
+					)}
 				</span>
 				<span className="user-name">{session.user.name}</span>
 			</DropdownMenuTrigger>
