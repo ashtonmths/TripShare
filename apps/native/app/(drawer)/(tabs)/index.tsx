@@ -4,6 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { router } from "expo-router";
+import { useThemeColor } from "heroui-native";
 import { useState } from "react";
 import {
 	Alert,
@@ -41,7 +42,7 @@ function Field({
 }) {
 	return (
 		<View className="gap-2">
-			<Text className="font-black text-black text-sm">{label}</Text>
+			<Text className="font-black text-foreground text-sm">{label}</Text>
 			<TextInput
 				value={value}
 				onChangeText={onChange}
@@ -49,7 +50,7 @@ function Field({
 				autoCapitalize={keyboardType === "email-address" ? "none" : "sentences"}
 				placeholder={placeholder}
 				placeholderTextColor="#777"
-				className="border-2 border-black bg-white px-4 py-3 text-black"
+				className="border-2 border-foreground bg-background px-4 py-3 text-foreground"
 			/>
 		</View>
 	);
@@ -190,17 +191,19 @@ function PaymentClaim({
 				behavior={Platform.OS === "ios" ? "padding" : undefined}
 				className="flex-1 justify-end bg-black/60"
 			>
-				<View className="border-2 border-black bg-[#f5f2e8] p-5">
+				<View className="border-2 border-foreground bg-background p-5">
 					<View className="flex-row items-center justify-between">
-						<Text className="font-black text-2xl text-black">Mark as paid</Text>
+						<Text className="font-black text-2xl text-foreground">
+							Mark as paid
+						</Text>
 						<Pressable
 							onPress={close}
-							className="h-10 w-10 items-center justify-center border-2 border-black bg-white"
+							className="h-10 w-10 items-center justify-center border-2 border-foreground bg-background"
 						>
 							<Ionicons name="close" size={21} />
 						</Pressable>
 					</View>
-					<Text className="mt-2 text-black">
+					<Text className="mt-2 text-foreground">
 						The owner must approve before your balance changes.
 					</Text>
 					<View className="mt-5">
@@ -403,7 +406,7 @@ export default function Trips() {
 					<View className="mt-4 flex-row flex-wrap gap-2">
 						<Action
 							icon="person-add-outline"
-							label="Partner"
+							label="Add person"
 							onPress={() => {
 								setEditingPersonId(undefined);
 								setMode("person");
@@ -414,45 +417,52 @@ export default function Trips() {
 							label="Payment"
 							onPress={() => setMode("payment")}
 						/>
+						<Action
+							icon="settings-outline"
+							label="Settings"
+							onPress={() => setMode("settings")}
+						/>
 					</View>
 					<SectionTitle title="Balances" />
 					{!detail.data.people.length ? (
 						<Empty text="Add a partner to start splitting rides." />
 					) : (
-						detail.data.people.map((member) => {
-							const balance = detail.data.balances.find(
-								(item) => item.personId === member.id,
-							);
-							const due = balance?.balancePaise ?? 0;
-							return (
-								<Pressable
-									key={member.id}
-									onPress={() => {
-										setEditingPersonId(member.id);
-										setMode("person");
-									}}
-									className="mb-2 flex-row items-center border-2 border-foreground bg-background p-4"
-								>
-									<View className="mr-3 h-10 w-10 items-center justify-center border-2 border-foreground bg-[#ff9fb2]">
-										<Text className="font-black text-black">
-											{member.name.slice(0, 1).toUpperCase()}
-										</Text>
-									</View>
-									<View className="flex-1">
+						<View className="border-2 border-foreground bg-background p-2">
+							{detail.data.people.map((member) => {
+								const balance = detail.data.balances.find(
+									(item) => item.personId === member.id,
+								);
+								const due = balance?.balancePaise ?? 0;
+								return (
+									<Pressable
+										key={member.id}
+										onPress={() => {
+											setEditingPersonId(member.id);
+											setMode("person");
+										}}
+										className="mb-2 flex-row items-center border-2 border-foreground bg-background p-4"
+									>
+										<View className="mr-3 h-10 w-10 items-center justify-center border-2 border-foreground bg-[#ff9fb2]">
+											<Text className="font-black text-black">
+												{member.name.slice(0, 1).toUpperCase()}
+											</Text>
+										</View>
+										<View className="flex-1">
+											<Text className="font-black text-foreground">
+												{member.name}
+											</Text>
+											<Text className="text-muted text-xs">
+												{member.email ?? "Email not set"} ·{" "}
+												{formatRupees(balance?.paidPaise ?? 0)} paid
+											</Text>
+										</View>
 										<Text className="font-black text-foreground">
-											{member.name}
+											{due <= 0 ? "Settled" : formatRupees(due)}
 										</Text>
-										<Text className="text-muted text-xs">
-											{member.email ?? "Email not set"} ·{" "}
-											{formatRupees(balance?.paidPaise ?? 0)} paid
-										</Text>
-									</View>
-									<Text className="font-black text-foreground">
-										{due <= 0 ? "Settled" : formatRupees(due)}
-									</Text>
-								</Pressable>
-							);
-						})
+									</Pressable>
+								);
+							})}
+						</View>
 					)}
 					{detail.data.corrections.some(
 						(item) => item.status === "pending",
@@ -540,12 +550,13 @@ function Action({
 	label: string;
 	onPress: () => void;
 }) {
+	const foreground = useThemeColor("foreground");
 	return (
 		<Pressable
 			onPress={onPress}
 			className="min-w-[46%] flex-1 flex-row items-center justify-center gap-2 border-2 border-foreground bg-background p-3"
 		>
-			<Ionicons name={icon} size={18} />
+			<Ionicons name={icon} size={18} color={foreground} />
 			<Text className="font-black text-foreground">{label}</Text>
 		</Pressable>
 	);
@@ -680,6 +691,8 @@ function Editor({
 	close: () => void;
 	saved: () => Promise<void>;
 }) {
+	const background = useThemeColor("background");
+	const foreground = useThemeColor("foreground");
 	const group = data?.group;
 	const editingPerson = data?.people.find(
 		(item) => item.id === editingPersonId,
@@ -720,7 +733,7 @@ function Editor({
 	);
 	const states = useQuery({
 		...trpc.fuel.states.queryOptions(),
-		enabled: mode === "settings",
+		enabled: mode === "settings" || mode === "group",
 		staleTime: 86_400_000,
 	});
 	const [stateChoice, setStateChoice] = useState<{
@@ -735,7 +748,7 @@ function Editor({
 			stateId: activeState?.id ?? 1,
 			stateSlug: activeState?.slug ?? "India",
 		}),
-		enabled: mode === "settings" && Boolean(activeState),
+		enabled: (mode === "settings" || mode === "group") && Boolean(activeState),
 		staleTime: 86_400_000,
 	});
 	const busy =
@@ -752,6 +765,10 @@ function Editor({
 				mileageKmpl: Number(form.mileage),
 				normalOneWayKm: Number(form.distance),
 				startDate: form.startDate,
+				fuelType: form.fuelType as "petrol" | "diesel",
+				fuelState: form.fuelState,
+				fuelDistrict: form.fuelDistrict,
+				fuelLocationId: Number(form.fuelLocationId),
 			});
 		if (mode === "person" && groupId && editingPersonId)
 			updatePerson.mutate({
@@ -795,12 +812,13 @@ function Editor({
 				className="flex-1 justify-end bg-black/60"
 			>
 				<ScrollView
-					className="max-h-[90%] border-2 border-black bg-[#f5f2e8] p-4"
+					className="max-h-[90%] border-2 p-4"
+					style={{ backgroundColor: background, borderColor: foreground }}
 					keyboardShouldPersistTaps="handled"
 					showsVerticalScrollIndicator={false}
 				>
 					<View className="mb-4 flex-row items-center justify-between">
-						<Text className="font-black text-2xl text-black">
+						<Text className="font-black text-2xl text-foreground">
 							{mode === "group"
 								? "New trip"
 								: mode === "person"
@@ -813,9 +831,9 @@ function Editor({
 						</Text>
 						<Pressable
 							onPress={close}
-							className="h-10 w-10 items-center justify-center border-2 border-black bg-white"
+							className="h-10 w-10 items-center justify-center border-2 border-foreground bg-background"
 						>
-							<Ionicons name="close" size={22} />
+							<Ionicons name="close" size={22} color={foreground} />
 						</Pressable>
 					</View>
 					<View className="gap-4">
@@ -850,6 +868,76 @@ function Editor({
 									value={form.startDate}
 									onChange={(v) => set("startDate", v)}
 								/>
+								<Text className="font-black text-foreground text-sm">
+									Fuel type
+								</Text>
+								<View className="flex-row gap-2">
+									{(["petrol", "diesel"] as const).map((value) => (
+										<Pressable
+											key={value}
+											onPress={() => set("fuelType", value)}
+											className={`flex-1 border-2 border-foreground p-3 ${form.fuelType === value ? "bg-[#c8f55a]" : "bg-background"}`}
+										>
+											<Text
+												className={`text-center font-black ${form.fuelType === value ? "text-black" : "text-foreground"}`}
+											>
+												{value === "petrol" ? "Petrol" : "Diesel"}
+											</Text>
+										</Pressable>
+									))}
+								</View>
+								<Text className="font-black text-foreground text-sm">
+									State
+								</Text>
+								<ScrollView
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									contentContainerClassName="gap-2"
+								>
+									{states.data?.map((item) => (
+										<Pressable
+											key={item.id}
+											onPress={() => {
+												setStateChoice(item);
+												set("fuelState", item.name);
+												set("fuelDistrict", "");
+												set("fuelLocationId", "");
+											}}
+											className={`border-2 border-foreground px-3 py-2 ${form.fuelState === item.name ? "bg-[#8dc8ff]" : "bg-background"}`}
+										>
+											<Text
+												className={`font-bold text-xs ${form.fuelState === item.name ? "text-black" : "text-foreground"}`}
+											>
+												{item.name}
+											</Text>
+										</Pressable>
+									))}
+								</ScrollView>
+								<Text className="font-black text-foreground text-sm">
+									District / city
+								</Text>
+								<ScrollView
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									contentContainerClassName="gap-2"
+								>
+									{districts.data?.map((item) => (
+										<Pressable
+											key={item.id}
+											onPress={() => {
+												set("fuelDistrict", item.name);
+												set("fuelLocationId", String(item.id));
+											}}
+											className={`border-2 border-foreground px-3 py-2 ${form.fuelDistrict === item.name ? "bg-[#ff9fb2]" : "bg-background"}`}
+										>
+											<Text
+												className={`font-bold text-xs ${form.fuelDistrict === item.name ? "text-black" : "text-foreground"}`}
+											>
+												{item.name}
+											</Text>
+										</Pressable>
+									))}
+								</ScrollView>
 							</>
 						)}
 						{mode === "person" && (
@@ -870,7 +958,7 @@ function Editor({
 									value={form.phone ?? ""}
 									onChange={(v) => set("phone", v)}
 								/>
-								<Text className="text-black text-sm">
+								<Text className="text-foreground text-sm">
 									This email automatically receives read-only access after
 									Google sign-in.
 								</Text>
@@ -878,7 +966,9 @@ function Editor({
 						)}
 						{mode === "payment" && (
 							<>
-								<Text className="font-black text-black text-sm">Partner</Text>
+								<Text className="font-black text-foreground text-sm">
+									Partner
+								</Text>
 								<View className="flex-row flex-wrap gap-2">
 									{data?.people.map((item) => (
 										<Pressable
@@ -896,7 +986,9 @@ function Editor({
 									onChange={(v) => set("amount", v)}
 									keyboardType="decimal-pad"
 								/>
-								<Text className="font-black text-black text-sm">Method</Text>
+								<Text className="font-black text-foreground text-sm">
+									Method
+								</Text>
 								<View className="flex-row flex-wrap gap-2">
 									{["upi", "cash", "bank_transfer", "other"].map((value) => (
 										<Pressable
@@ -936,7 +1028,7 @@ function Editor({
 									onChange={(v) => set("distance", v)}
 									keyboardType="decimal-pad"
 								/>
-								<Text className="font-black text-black text-sm">Fuel</Text>
+								<Text className="font-black text-foreground text-sm">Fuel</Text>
 								<View className="flex-row gap-2">
 									{["petrol", "diesel"].map((value) => (
 										<Pressable
@@ -950,7 +1042,9 @@ function Editor({
 										</Pressable>
 									))}
 								</View>
-								<Text className="font-black text-black text-sm">State</Text>
+								<Text className="font-black text-foreground text-sm">
+									State
+								</Text>
 								<ScrollView
 									horizontal
 									showsHorizontalScrollIndicator={false}
@@ -972,7 +1066,7 @@ function Editor({
 										</Pressable>
 									))}
 								</ScrollView>
-								<Text className="font-black text-black text-sm">
+								<Text className="font-black text-foreground text-sm">
 									District / city
 								</Text>
 								<ScrollView
@@ -998,7 +1092,7 @@ function Editor({
 							</>
 						)}
 						<Pressable
-							disabled={busy}
+							disabled={busy || (mode === "group" && !form.fuelLocationId)}
 							onPress={submit}
 							className="mt-2 border-2 border-black bg-[#c8f55a] p-4 disabled:opacity-40"
 							style={hardShadow}
