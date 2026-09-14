@@ -1,6 +1,8 @@
 import type { AppRouter } from "@TripShare/api/routers/index";
 import { formatRupees } from "@TripShare/shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { router } from "expo-router";
@@ -23,6 +25,8 @@ import { hardShadow } from "@/lib/neobrutalism";
 import { queryClient, trpc } from "@/utils/trpc";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const dateToIso = (date: Date) =>
+	`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 type Mode = "group" | "person" | "payment" | "settings";
 type Detail = inferRouterOutputs<AppRouter>["groups"]["detail"];
 type SharedDetail = inferRouterOutputs<AppRouter>["sharedTrips"]["detail"];
@@ -52,6 +56,98 @@ function Field({
 				placeholderTextColor="#777"
 				className="border-2 border-foreground bg-background px-4 py-3 text-foreground"
 			/>
+		</View>
+	);
+}
+
+function DateField({
+	label,
+	value,
+	onChange,
+	minimumDate,
+}: {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+	minimumDate?: string;
+}) {
+	const [open, setOpen] = useState(false);
+	const foreground = useThemeColor("foreground");
+	return (
+		<View className="gap-2">
+			<Text className="font-black text-foreground text-sm">{label}</Text>
+			<Pressable
+				onPress={() => setOpen(true)}
+				className="flex-row items-center justify-between border-2 border-foreground bg-background px-4 py-3"
+			>
+				<Text className="font-bold text-foreground">
+					{new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
+						day: "numeric",
+						month: "long",
+						year: "numeric",
+					})}
+				</Text>
+				<Ionicons name="calendar-outline" size={20} color={foreground} />
+			</Pressable>
+			{open && (
+				<DateTimePicker
+					value={new Date(`${value}T12:00:00`)}
+					mode="date"
+					display={Platform.OS === "ios" ? "inline" : "default"}
+					minimumDate={
+						minimumDate ? new Date(`${minimumDate}T12:00:00`) : undefined
+					}
+					maximumDate={new Date()}
+					onChange={(_, date) => {
+						if (Platform.OS === "android") setOpen(false);
+						if (date) onChange(dateToIso(date));
+					}}
+				/>
+			)}
+			{open && Platform.OS === "ios" && (
+				<Pressable
+					onPress={() => setOpen(false)}
+					className="border-2 border-black bg-[#c8f55a] p-3"
+				>
+					<Text className="text-center font-black text-black">Done</Text>
+				</Pressable>
+			)}
+		</View>
+	);
+}
+
+function SelectField({
+	label,
+	value,
+	onChange,
+	items,
+}: {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+	items: Array<{ label: string; value: string }>;
+}) {
+	const foreground = useThemeColor("foreground");
+	const background = useThemeColor("background");
+	return (
+		<View className="gap-2">
+			<Text className="font-black text-foreground text-sm">{label}</Text>
+			<View className="border-2 border-foreground bg-background">
+				<Picker
+					selectedValue={value}
+					onValueChange={(next) => onChange(String(next))}
+					style={{ color: foreground, backgroundColor: background }}
+					dropdownIconColor={foreground}
+				>
+					{items.map((item) => (
+						<Picker.Item
+							key={item.value}
+							label={item.label}
+							value={item.value}
+						/>
+					))}
+				</Picker>
+			</View>
 		</View>
 	);
 }
@@ -172,6 +268,7 @@ function PaymentClaim({
 	const [method, setMethod] = useState<
 		"upi" | "cash" | "bank_transfer" | "other"
 	>("upi");
+	const [paidOn, setPaidOn] = useState(today());
 	const claim = useMutation(
 		trpc.sharedTrips.claimPayment.mutationOptions({
 			onSuccess: async () => {
@@ -214,23 +311,19 @@ function PaymentClaim({
 							keyboardType="decimal-pad"
 						/>
 					</View>
-					<Text className="mt-4 mb-2 font-black text-black text-sm">
-						Method
-					</Text>
-					<View className="flex-row flex-wrap gap-2">
-						{(["upi", "cash", "bank_transfer", "other"] as const).map(
-							(value) => (
-								<Pressable
-									key={value}
-									onPress={() => setMethod(value)}
-									className={`border-2 border-black px-3 py-2 ${method === value ? "bg-[#c8f55a]" : "bg-white"}`}
-								>
-									<Text className="font-black text-black">
-										{value.replace("_", " ")}
-									</Text>
-								</Pressable>
-							),
-						)}
+					<View className="mt-4 gap-4">
+						<SelectField
+							label="Method"
+							value={method}
+							onChange={(value) => setMethod(value as typeof method)}
+							items={[
+								{ label: "UPI", value: "upi" },
+								{ label: "Cash", value: "cash" },
+								{ label: "Bank transfer", value: "bank_transfer" },
+								{ label: "Other", value: "other" },
+							]}
+						/>
+						<DateField label="Paid on" value={paidOn} onChange={setPaidOn} />
 					</View>
 					<Pressable
 						disabled={!Number(amount) || claim.isPending}
@@ -239,7 +332,7 @@ function PaymentClaim({
 								groupId,
 								amountPaise: Math.round(Number(amount) * 100),
 								method,
-								paidOn: new Date().toISOString().slice(0, 10),
+								paidOn,
 							})
 						}
 						className="mt-5 border-2 border-black bg-[#c8f55a] p-4 disabled:opacity-40"
@@ -863,8 +956,8 @@ function Editor({
 									onChange={(v) => set("distance", v)}
 									keyboardType="decimal-pad"
 								/>
-								<Field
-									label="Tracking starts (YYYY-MM-DD)"
+								<DateField
+									label="Tracking start date"
 									value={form.startDate}
 									onChange={(v) => set("startDate", v)}
 								/>
@@ -966,44 +1059,37 @@ function Editor({
 						)}
 						{mode === "payment" && (
 							<>
-								<Text className="font-black text-foreground text-sm">
-									Partner
-								</Text>
-								<View className="flex-row flex-wrap gap-2">
-									{data?.people.map((item) => (
-										<Pressable
-											key={item.id}
-											onPress={() => set("personId", item.id)}
-											className={`border-2 border-black px-3 py-2 ${form.personId === item.id ? "bg-[#8dc8ff]" : "bg-white"}`}
-										>
-											<Text className="font-bold text-black">{item.name}</Text>
-										</Pressable>
-									))}
-								</View>
+								<SelectField
+									label="Person"
+									value={form.personId ?? ""}
+									onChange={(value) => set("personId", value)}
+									items={[
+										{ label: "Select person", value: "" },
+										...(data?.people.map((item) => ({
+											label: item.name,
+											value: item.id,
+										})) ?? []),
+									]}
+								/>
 								<Field
 									label="Amount (₹)"
 									value={form.amount ?? ""}
 									onChange={(v) => set("amount", v)}
 									keyboardType="decimal-pad"
 								/>
-								<Text className="font-black text-foreground text-sm">
-									Method
-								</Text>
-								<View className="flex-row flex-wrap gap-2">
-									{["upi", "cash", "bank_transfer", "other"].map((value) => (
-										<Pressable
-											key={value}
-											onPress={() => set("method", value)}
-											className={`border-2 border-black px-3 py-2 ${form.method === value ? "bg-[#c8f55a]" : "bg-white"}`}
-										>
-											<Text className="font-bold text-black">
-												{value.replace("_", " ")}
-											</Text>
-										</Pressable>
-									))}
-								</View>
-								<Field
-									label="Paid on (YYYY-MM-DD)"
+								<SelectField
+									label="Method"
+									value={form.method}
+									onChange={(value) => set("method", value)}
+									items={[
+										{ label: "UPI", value: "upi" },
+										{ label: "Cash", value: "cash" },
+										{ label: "Bank transfer", value: "bank_transfer" },
+										{ label: "Other", value: "other" },
+									]}
+								/>
+								<DateField
+									label="Paid on"
 									value={form.paidOn}
 									onChange={(v) => set("paidOn", v)}
 								/>
@@ -1092,7 +1178,11 @@ function Editor({
 							</>
 						)}
 						<Pressable
-							disabled={busy || (mode === "group" && !form.fuelLocationId)}
+							disabled={
+								busy ||
+								(mode === "group" && !form.fuelLocationId) ||
+								(mode === "payment" && !form.personId)
+							}
 							onPress={submit}
 							className="mt-2 border-2 border-black bg-[#c8f55a] p-4 disabled:opacity-40"
 							style={hardShadow}
