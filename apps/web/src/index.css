@@ -847,8 +847,9 @@ legend {
 }
 .app-loader p {
 	margin-top: 11px;
-	color: var(--muted);
+	color: var(--ink);
 	font-size: 14px;
+	font-weight: 700;
 }
 @keyframes loader-drive {
 	to {

@@ -16,7 +16,9 @@ export function AppLoading() {
 			<View className="mt-5 h-2 w-28 overflow-hidden border border-foreground bg-background">
 				<View className="h-full w-2/3 bg-[#c8f55a]" />
 			</View>
-			<Text className="mt-3 text-muted text-sm">Getting your rides ready</Text>
+			<Text className="mt-3 font-bold text-foreground text-sm">
+				Getting your rides ready
+			</Text>
 		</View>
 	);
 }
