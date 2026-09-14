@@ -8,7 +8,13 @@ import { DownloadAppLink } from "./download-app-link";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
-export default function Header() {
+type HeaderUser = { email: string; image?: string | null; name: string };
+
+export default function Header({
+	initialUser,
+}: {
+	initialUser: HeaderUser | null;
+}) {
 	const pathname = usePathname();
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	if (pathname === "/login") return null;
@@ -38,7 +44,7 @@ export default function Header() {
 				<div className="nav-actions">
 					<ModeToggle />
 					<DownloadAppLink />
-					<UserMenu />
+					<UserMenu initialUser={initialUser} />
 				</div>
 				<button
 					type="button"
@@ -73,7 +79,7 @@ export default function Header() {
 							<ModeToggle />
 						</div>
 						<DownloadAppLink mobile />
-						<UserMenu />
+						<UserMenu initialUser={initialUser} />
 					</aside>
 				</>
 			)}

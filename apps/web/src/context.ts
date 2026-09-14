@@ -9,12 +9,6 @@ export async function createContext(req: NextRequest): Promise<ApiContext> {
 		headers: req.headers,
 	});
 	return {
-		adminEmails: [
-			"mathiasashton07@gmail.com",
-			...(env.ADMIN_EMAILS ?? "").split(","),
-		]
-			.map((email) => email.trim().toLowerCase())
-			.filter(Boolean),
 		db,
 		auth: null,
 		clientIp:
