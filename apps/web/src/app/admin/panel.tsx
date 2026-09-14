@@ -8,7 +8,7 @@ import { queryClient, trpc } from "@/utils/trpc";
 
 export default function AdminPanel() {
 	const overview = useQuery(trpc.admin.overview.queryOptions());
-	const [version, setVersion] = useState("1.1.1");
+	const [version, setVersion] = useState("1.1.2");
 	const [downloadUrl, setDownloadUrl] = useState("");
 	const [notes, setNotes] = useState("");
 	const publish = useMutation(
