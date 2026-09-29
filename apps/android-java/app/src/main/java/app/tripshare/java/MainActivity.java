@@ -22,6 +22,7 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.browser.customtabs.CustomTabsIntent;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.nio.charset.StandardCharsets;
@@ -52,6 +53,7 @@ public final class MainActivity extends Activity {
     private JSONArray owned = new JSONArray(), shared = new JSONArray();
     private String selectedId, screen = "home";
     private boolean selectedShared, dark = true;
+    private boolean connectingToGoogle, authBrowserLaunched;
     private String rideGroupId, rideDate = LocalDate.now().toString(), rideDirection = "one_way";
     private final Map<String, String> ridePeople = new HashMap<>();
     private long ridePricePaise;
@@ -90,19 +92,42 @@ public final class MainActivity extends Activity {
         handleDeepLink(intent);
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        if (connectingToGoogle && authBrowserLaunched) {
+            connectingToGoogle = false;
+            authBrowserLaunched = false;
+            render();
+        }
+    }
+
     private void handleDeepLink(Intent intent) {
         Uri uri = intent == null ? null : intent.getData();
         if (uri == null || !"tripsharejava".equals(uri.getScheme()) || !"auth".equals(uri.getHost())) return;
+        connectingToGoogle = false;
+        authBrowserLaunched = false;
         String raw = uri.getQueryParameter("cookie");
-        if (raw == null || raw.isEmpty()) { error("Google sign-in did not return a session"); return; }
+        intent.setData(null);
+        if (raw == null || raw.isEmpty()) {
+            render();
+            error("Google sign-in did not complete. Please try again.");
+            return;
+        }
         try {
             java.util.regex.Matcher session = java.util.regex.Pattern.compile(
                     "((?:__Secure-)?better-auth\\.session_token=[^;,\\s]+)").matcher(raw);
-            if (!session.find()) { error("Google sign-in did not return a session token"); return; }
+            if (!session.find()) {
+                render();
+                error("Google sign-in did not return a session token");
+                return;
+            }
             sessionStore.save(session.group(1));
-            intent.setData(null);
+            showGoogleLoading("Signing you in…");
             loadSession();
-        } catch (Exception e) { error("Could not save sign-in session"); }
+        } catch (Exception e) {
+            render();
+            error("Could not save sign-in session");
+        }
     }
 
     private void loadSession() {
@@ -116,18 +141,38 @@ public final class MainActivity extends Activity {
     }
 
     private void signIn() {
-        showLoading();
+        if (connectingToGoogle) return;
+        connectingToGoogle = true;
+        showGoogleLoading("Connecting to Google…");
         api.auth("sign-in/social", ApiClient.json(
                 "provider", "google",
                 "callbackURL", "tripsharejava://auth",
                 "errorCallbackURL", "tripsharejava://auth"
         ), (result, failure) -> {
-            if (failure != null) { render(); error(failure); return; }
+            if (failure != null) {
+                connectingToGoogle = false;
+                render();
+                error(failure);
+                return;
+            }
             String url = str(obj(result), "url");
-            if (url.isEmpty()) { render(); error("Google sign-in could not start"); return; }
+            if (url.isEmpty()) {
+                connectingToGoogle = false;
+                render();
+                error("Google sign-in could not start");
+                return;
+            }
             Uri proxy = Uri.parse(BuildConfig.API_BASE_URL + "/api/auth/expo-authorization-proxy")
                     .buildUpon().appendQueryParameter("authorizationURL", url).build();
-            startActivity(new Intent(Intent.ACTION_VIEW, proxy));
+            try {
+                authBrowserLaunched = true;
+                new CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(this, proxy);
+            } catch (Exception e) {
+                authBrowserLaunched = false;
+                connectingToGoogle = false;
+                render();
+                error("No browser is available for Google sign-in");
+            }
         });
     }
 
@@ -220,6 +265,16 @@ public final class MainActivity extends Activity {
         content.removeAllViews();
         heading(content, "TripShare", 32, dark ? PAPER : INK);
         label(content, "Getting your rides ready", dark ? PAPER : INK, 16);
+    }
+
+    private void showGoogleLoading(String message) {
+        content.removeAllViews();
+        bottom.setVisibility(View.GONE);
+        spacer(content, 72);
+        LinearLayout card = card(content, BLUE);
+        heading(card, "TripShare", 31, INK);
+        label(card, message, INK, 18);
+        label(card, "Keep this app open while Google confirms your account.", INK, 14);
     }
 
     private void renderLogin() {
