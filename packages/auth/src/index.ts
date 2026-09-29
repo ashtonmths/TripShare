@@ -18,7 +18,7 @@ export function createAuth(env: AuthConfig, database: Database) {
 			provider: "pg",
 			schema,
 		}),
-		trustedOrigins: [env.BETTER_AUTH_URL, "tripshare://"],
+		trustedOrigins: [env.BETTER_AUTH_URL, "tripshare://", "tripsharejava://"],
 		emailAndPassword: { enabled: false },
 		rateLimit: {
 			enabled: true,
