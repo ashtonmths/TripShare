@@ -6,6 +6,8 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -14,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -22,6 +25,8 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.nio.charset.StandardCharsets;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -418,6 +423,24 @@ public final class MainActivity extends Activity {
     private void renderProfile() {
         heading(content, "Profile", 30, dark ? PAPER : INK);
         LinearLayout card = card(content, BLUE);
+        String photo = str(user, "image");
+        if (photo.startsWith("https://")) {
+            ImageView avatar = new ImageView(this);
+            avatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            card.addView(avatar, new LinearLayout.LayoutParams(dp(72), dp(72)));
+            new Thread(() -> {
+                try {
+                    HttpURLConnection connection = (HttpURLConnection) new URL(photo).openConnection();
+                    connection.setConnectTimeout(8000);
+                    connection.setReadTimeout(8000);
+                    Bitmap bitmap;
+                    try (java.io.InputStream input = connection.getInputStream()) {
+                        bitmap = BitmapFactory.decodeStream(input);
+                    } finally { connection.disconnect(); }
+                    if (bitmap != null) runOnUiThread(() -> avatar.setImageBitmap(bitmap));
+                } catch (Exception ignored) { }
+            }).start();
+        }
         heading(card, str(user, "name"), 26, INK);
         label(card, str(user, "email"), INK, 15);
         button(content, "Edit display name", LIME, this::editName);
@@ -640,6 +663,10 @@ public final class MainActivity extends Activity {
         EditText email = input(form.body, "Google email (optional)", str(existing, "email"), false);
         EditText phone = input(form.body, "Phone (optional)", str(existing, "phone"), false);
         label(form.body, "A matching Google account receives read-only access.", INK, 13);
+        if (existing != null) button(form.body, existing.optInt("isActive", 1) == 1 ? "Deactivate person" : "Reactivate person",
+                PINK, () -> submit("people.setActive", ApiClient.json("groupId", selectedId,
+                        "personId", str(existing, "id"), "active", existing.optInt("isActive", 1) != 1),
+                        () -> { form.dialog.dismiss(); loadSelected(); }));
         form.save(() -> {
             if (name.getText().toString().trim().length() < 2) { error("Enter a name"); return; }
             JSONObject data = ApiClient.json("groupId", selectedId, "name", name.getText().toString().trim(),
@@ -665,7 +692,11 @@ public final class MainActivity extends Activity {
         label(form.body, "Method", INK, 14);
         Spinner method = spinner(form.body, List.of("UPI", "Cash", "Bank transfer", "Other"), 0);
         final String[] date = {LocalDate.now().toString()};
-        button(form.body, "Paid on · " + date[0], BLUE, () -> pickDate(date[0], value -> date[0] = value));
+        final TextView[] dateButton = {null};
+        dateButton[0] = button(form.body, "Paid on · " + date[0], BLUE, () -> pickDate(date[0], value -> {
+            date[0] = value;
+            dateButton[0].setText("Paid on · " + value);
+        }));
         EditText note = input(form.body, "Note (optional)", "", false);
         form.save(() -> {
             try {
@@ -687,7 +718,11 @@ public final class MainActivity extends Activity {
         label(form.body, "Method", INK, 14);
         Spinner method = spinner(form.body, List.of("UPI", "Cash", "Bank transfer", "Other"), 0);
         final String[] date = {LocalDate.now().toString()};
-        button(form.body, "Paid on · " + date[0], BLUE, () -> pickDate(date[0], value -> date[0] = value));
+        final TextView[] dateButton = {null};
+        dateButton[0] = button(form.body, "Paid on · " + date[0], BLUE, () -> pickDate(date[0], value -> {
+            date[0] = value;
+            dateButton[0].setText("Paid on · " + value);
+        }));
         EditText note = input(form.body, "Note (optional)", "", false);
         form.save(() -> {
             try {
@@ -720,8 +755,12 @@ public final class MainActivity extends Activity {
         if (existing == null) {
             name = input(form.body, "Trip name", "", false);
             vehicle = input(form.body, "Vehicle", "", false);
-            button(form.body, "Tracking start date · " + start[0], BLUE,
-                    () -> pickDate(start[0], value -> start[0] = value));
+            final TextView[] startButton = {null};
+            startButton[0] = button(form.body, "Tracking start date · " + start[0], BLUE,
+                    () -> pickDate(start[0], value -> {
+                        start[0] = value;
+                        startButton[0].setText("Tracking start date · " + value);
+                    }));
         }
         EditText mileage = input(form.body, "Mileage (km/l)", str(existing, "mileageKmpl"), true);
         EditText distance = input(form.body, "One-way distance (km)", str(existing, "normalOneWayKm"), true);
@@ -962,7 +1001,7 @@ public final class MainActivity extends Activity {
         parent.addView(card, params);
         return card;
     }
-    private void button(LinearLayout parent, String title, int color, Runnable action) {
+    private TextView button(LinearLayout parent, String title, int color, Runnable action) {
         TextView button = new TextView(this);
         button.setText(title);
         button.setTextColor(INK);
@@ -979,5 +1018,6 @@ public final class MainActivity extends Activity {
         params.setMargins(0, dp(7), 0, dp(5));
         parent.addView(button, params);
         button.setOnClickListener(v -> action.run());
+        return button;
     }
 }
