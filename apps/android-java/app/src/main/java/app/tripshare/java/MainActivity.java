@@ -30,6 +30,7 @@ import java.net.URL;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -497,7 +498,7 @@ public final class MainActivity extends Activity {
             render();
         }));
         section(content, "3 · Route");
-        Spinner direction = spinner(content, List.of("One way", "Return"), "two_way".equals(rideDirection) ? 1 : 0);
+        Spinner direction = spinner(content, Arrays.asList("One way", "Return"), "two_way".equals(rideDirection) ? 1 : 0);
         direction.setOnItemSelectedListener(new SimpleSelection(position -> {
             String next = position == 0 ? "one_way" : "two_way";
             if (!next.equals(rideDirection)) {
@@ -579,7 +580,7 @@ public final class MainActivity extends Activity {
                 updatePreview();
             });
             if (ridePeople.containsKey(id) && "two_way".equals(rideDirection)) {
-                Spinner route = spinner(row, List.of("One way", "Return"),
+                Spinner route = spinner(row, Arrays.asList("One way", "Return"),
                         "two_way".equals(ridePeople.get(id)) ? 1 : 0);
                 route.setOnItemSelectedListener(new SimpleSelection(position -> {
                     ridePeople.put(id, position == 0 ? "one_way" : "two_way");
@@ -690,7 +691,7 @@ public final class MainActivity extends Activity {
         Spinner person = spinner(form.body, names, 0);
         EditText amount = input(form.body, "Amount (₹)", "", true);
         label(form.body, "Method", INK, 14);
-        Spinner method = spinner(form.body, List.of("UPI", "Cash", "Bank transfer", "Other"), 0);
+        Spinner method = spinner(form.body, Arrays.asList("UPI", "Cash", "Bank transfer", "Other"), 0);
         final String[] date = {LocalDate.now().toString()};
         final TextView[] dateButton = {null};
         dateButton[0] = button(form.body, "Paid on · " + date[0], BLUE, () -> pickDate(date[0], value -> {
@@ -716,7 +717,7 @@ public final class MainActivity extends Activity {
         Form form = form("Mark payment sent");
         EditText amount = input(form.body, "Amount (₹)", "", true);
         label(form.body, "Method", INK, 14);
-        Spinner method = spinner(form.body, List.of("UPI", "Cash", "Bank transfer", "Other"), 0);
+        Spinner method = spinner(form.body, Arrays.asList("UPI", "Cash", "Bank transfer", "Other"), 0);
         final String[] date = {LocalDate.now().toString()};
         final TextView[] dateButton = {null};
         dateButton[0] = button(form.body, "Paid on · " + date[0], BLUE, () -> pickDate(date[0], value -> {
@@ -765,12 +766,12 @@ public final class MainActivity extends Activity {
         EditText mileage = input(form.body, "Mileage (km/l)", str(existing, "mileageKmpl"), true);
         EditText distance = input(form.body, "One-way distance (km)", str(existing, "normalOneWayKm"), true);
         label(form.body, "Fuel type", INK, 14);
-        Spinner fuel = spinner(form.body, List.of("Petrol", "Diesel"),
+        Spinner fuel = spinner(form.body, Arrays.asList("Petrol", "Diesel"),
                 "diesel".equals(str(existing, "fuelType")) ? 1 : 0);
         label(form.body, "State", INK, 14);
-        Spinner states = spinner(form.body, List.of("Loading states…"), 0);
+        Spinner states = spinner(form.body, Arrays.asList("Loading states…"), 0);
         label(form.body, "District / city", INK, 14);
-        Spinner districts = spinner(form.body, List.of("Select state first"), 0);
+        Spinner districts = spinner(form.body, Arrays.asList("Select state first"), 0);
         final JSONArray[] stateRows = {new JSONArray()}, districtRows = {new JSONArray()};
         final String[] stateName = {str(existing, "fuelState")},
                 districtName = {str(existing, "fuelDistrict")};
@@ -795,7 +796,7 @@ public final class MainActivity extends Activity {
                     locationId[0] = 0;
                 }
                 if (choice == null) return;
-                fillSpinner(districts, List.of("Loading districts…"), 0);
+                fillSpinner(districts, Arrays.asList("Loading districts…"), 0);
                 api.query("fuel.districts", ApiClient.json("stateId", choice.optInt("id"),
                         "stateSlug", str(choice, "slug")), (districtResult, districtFailure) -> {
                     if (districtFailure != null) { error(districtFailure); return; }
