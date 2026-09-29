@@ -31,6 +31,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
 	if (event.request.mode !== "navigate" || event.request.method !== "GET")
 		return;
+	// OAuth callbacks can redirect to a native app scheme. A service worker
+	// cannot follow that redirect, so its fetch() rejects even while online.
+	// Let the browser handle all API navigations, especially /api/auth/*.
+	if (new URL(event.request.url).pathname.startsWith("/api/")) return;
 	event.respondWith(
 		fetch(event.request).catch(async () => {
 			return (await caches.match(OFFLINE_URL)) ?? Response.error();
