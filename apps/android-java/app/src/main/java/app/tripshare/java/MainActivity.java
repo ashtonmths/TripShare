@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -17,6 +18,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -58,6 +60,8 @@ public final class MainActivity extends Activity {
     private final Map<String, String> ridePeople = new HashMap<>();
     private long ridePricePaise;
     private String rideQuote;
+    private boolean fuelLoading;
+    private String fuelError;
     private String rideKm = "";
     private EditText rideDistance;
     private LinearLayout ridePeopleArea, ridePreview;
@@ -394,6 +398,8 @@ public final class MainActivity extends Activity {
             JSONObject balance = find(balances, "personId", str(person, "id"));
             LinearLayout row = card(content, dark ? INK : PAPER);
             label(row, str(person, "name") + "   " + money(balance == null ? 0 : balance.optLong("balancePaise")), dark ? PAPER : INK, 17);
+            if (person.optInt("isActive", 1) == 0)
+                label(row, "Inactive · Not included in new rides", dark ? PINK : INK, 13);
             label(row, (person.isNull("email") ? "Email not set" : str(person, "email")) + " · "
                     + money(balance == null ? 0 : balance.optLong("paidPaise")) + " paid", dark ? PAPER : INK, 13);
             row.setOnClickListener(v -> personForm(person));
@@ -528,6 +534,8 @@ public final class MainActivity extends Activity {
                 ridePeople.clear();
                 ridePricePaise = 0;
                 rideQuote = null;
+                fuelLoading = false;
+                fuelError = null;
                 rideKm = "";
                 api.query("groups.detail", ApiClient.json("groupId", next), (result, failure) -> {
                     if (failure != null) { error(failure); return; }
@@ -561,6 +569,8 @@ public final class MainActivity extends Activity {
                 ridePeople.clear();
                 ridePricePaise = 0;
                 rideQuote = null;
+                fuelLoading = false;
+                fuelError = null;
                 rideKm = "";
                 render();
             }
@@ -584,15 +594,52 @@ public final class MainActivity extends Activity {
         renderRidePeople();
         section(content, "5 · Fuel price");
         LinearLayout fuelCard = card(content, BLUE);
-        label(fuelCard, str(group, "fuelDistrict") + " " + str(group, "fuelType"), INK, 17);
+        LinearLayout fuelHeading = new LinearLayout(this);
+        fuelHeading.setGravity(Gravity.CENTER_VERTICAL);
+        fuelCard.addView(fuelHeading);
+        ImageView fuelIcon = new ImageView(this);
+        fuelIcon.setImageResource(R.drawable.ic_fuel);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(25), dp(25));
+        iconParams.setMargins(0, 0, dp(9), 0);
+        fuelHeading.addView(fuelIcon, iconParams);
+        label(fuelHeading, str(group, "fuelDistrict") + " " + str(group, "fuelType"), INK, 17);
         label(fuelCard, ridePricePaise > 0 ? money(ridePricePaise) + " / litre" : "Fetch the current price", INK, 14);
-        button(fuelCard, "Fetch live price", LIME, () -> api.query("fuel.current", ApiClient.json("groupId", rideGroupId), (result, failure) -> {
-            if (failure != null) { error(failure + ". Enter a manual price."); return; }
-            JSONObject quote = obj(result);
-            ridePricePaise = quote == null ? 0 : quote.optLong("pricePaise");
-            rideQuote = str(quote, "quoteToken");
+        if (fuelError != null) label(fuelCard, fuelError + " Enter a price manually below.", INK, 14);
+        if (fuelLoading) {
+            LinearLayout progressRow = new LinearLayout(this);
+            progressRow.setGravity(Gravity.CENTER_VERTICAL);
+            fuelCard.addView(progressRow);
+            ProgressBar progress = new ProgressBar(this);
+            progress.setIndeterminateTintList(ColorStateList.valueOf(INK));
+            progressRow.addView(progress, new LinearLayout.LayoutParams(dp(26), dp(26)));
+            label(progressRow, "  Checking the current pump price…", INK, 14);
+        }
+        TextView fetchButton = button(fuelCard, fuelLoading ? "Fetching live price…" : "Fetch live price", LIME, () -> {
+            if (fuelLoading) return;
+            fuelLoading = true;
+            fuelError = null;
+            String requestedGroup = rideGroupId;
             render();
-        }));
+            api.query("fuel.current", ApiClient.json("groupId", requestedGroup), (result, failure) -> {
+                if (!requestedGroup.equals(rideGroupId)) return;
+                fuelLoading = false;
+                if (failure != null) {
+                    fuelError = failure;
+                    ridePricePaise = 0;
+                    rideQuote = null;
+                } else {
+                    JSONObject quote = obj(result);
+                    ridePricePaise = quote == null ? 0 : quote.optLong("pricePaise");
+                    rideQuote = str(quote, "quoteToken");
+                    fuelError = ridePricePaise > 0 ? null : "No valid fuel price was returned.";
+                }
+                render();
+            });
+        });
+        fetchButton.setEnabled(!fuelLoading);
+        fetchButton.setAlpha(fuelLoading ? 0.6f : 1f);
+        fetchButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_fuel, 0, 0, 0);
+        fetchButton.setCompoundDrawablePadding(dp(9));
         button(fuelCard, "Enter price manually", PAPER, () -> {
             EditText amount = new EditText(this);
             amount.setInputType(8194);
@@ -603,6 +650,7 @@ public final class MainActivity extends Activity {
                             ridePricePaise = Math.round(Double.parseDouble(amount.getText().toString()) * 100);
                             if (ridePricePaise <= 0) throw new NumberFormatException();
                             rideQuote = null;
+                            fuelError = null;
                             render();
                         } catch (NumberFormatException e) { error("Enter a valid price"); }
                     }).show();
@@ -719,10 +767,35 @@ public final class MainActivity extends Activity {
         EditText email = input(form.body, "Google email (optional)", str(existing, "email"), false);
         EditText phone = input(form.body, "Phone (optional)", str(existing, "phone"), false);
         label(form.body, "A matching Google account receives read-only access.", INK, 13);
-        if (existing != null) button(form.body, existing.optInt("isActive", 1) == 1 ? "Deactivate person" : "Reactivate person",
-                PINK, () -> submit("people.setActive", ApiClient.json("groupId", selectedId,
-                        "personId", str(existing, "id"), "active", existing.optInt("isActive", 1) != 1),
-                        () -> { form.dialog.dismiss(); loadSelected(); }));
+        if (existing != null) {
+            boolean currentlyActive = existing.optInt("isActive", 1) == 1;
+            String action = currentlyActive ? "Deactivate person" : "Reactivate person";
+            final TextView[] statusButton = {null};
+            statusButton[0] = button(form.body, action, currentlyActive ? PINK : LIME, () ->
+                    new AlertDialog.Builder(this)
+                            .setTitle(action + "?")
+                            .setMessage(currentlyActive
+                                    ? "They will no longer appear in new rides or have shared access. Past rides and balances stay in the ledger."
+                                    : "They will be available for new rides and shared access again.")
+                            .setNegativeButton("Cancel", null)
+                            .setPositiveButton(action, (dialog, which) -> {
+                                statusButton[0].setEnabled(false);
+                                statusButton[0].setText(currentlyActive ? "Deactivating…" : "Reactivating…");
+                                api.mutate("people.setActive", ApiClient.json("groupId", selectedId,
+                                        "personId", str(existing, "id"), "active", !currentlyActive), (result, failure) -> {
+                                    if (failure != null) {
+                                        statusButton[0].setEnabled(true);
+                                        statusButton[0].setText(action);
+                                        error(failure);
+                                        return;
+                                    }
+                                    ridePeople.remove(str(existing, "id"));
+                                    form.dialog.dismiss();
+                                    Toast.makeText(this, currentlyActive ? "Person deactivated" : "Person reactivated", Toast.LENGTH_SHORT).show();
+                                    loadSelected();
+                                });
+                            }).show());
+        }
         form.save(() -> {
             if (name.getText().toString().trim().length() < 2) { error("Enter a name"); return; }
             JSONObject data = ApiClient.json("groupId", selectedId, "name", name.getText().toString().trim(),
