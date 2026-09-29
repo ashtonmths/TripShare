@@ -102,13 +102,14 @@ export default function AddRide() {
 	const save = useMutation(
 		trpc.journeys.create.mutationOptions({
 			onSuccess: async () => {
-				Alert.alert("Ride saved", "Everyone’s balance is up to date.");
 				setPeople([]);
 				setPersonDirections({});
 				setPrice(undefined);
 				setQuote(undefined);
 				setManual("");
 				await queryClient.invalidateQueries();
+				router.replace("/(drawer)/(tabs)");
+				Alert.alert("Ride saved", "Everyone’s balance is up to date.");
 			},
 			onError: (error) => Alert.alert("Couldn’t save", error.message),
 		}),

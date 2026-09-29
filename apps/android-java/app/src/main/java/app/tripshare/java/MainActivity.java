@@ -52,9 +52,11 @@ public final class MainActivity extends Activity {
     private ScrollView scroller;
     private TextView themeButton;
     private JSONObject user, dashboard, detail, sharedDetail, selectedTrip;
+    private JSONObject lastSavedRide;
     private JSONArray owned = new JSONArray(), shared = new JSONArray();
     private String selectedId, screen = "home";
     private boolean selectedShared, dark = true;
+    private boolean dashboardLoading, rideSaving;
     private boolean connectingToGoogle, authBrowserLaunched;
     private String rideGroupId, rideDate = LocalDate.now().toString(), rideDirection = "one_way";
     private final Map<String, String> ridePeople = new HashMap<>();
@@ -215,6 +217,8 @@ public final class MainActivity extends Activity {
             });
         });
         api.query("dashboard", null, (result, failure) -> {
+            dashboardLoading = false;
+            if (failure != null) error(failure);
             dashboard = obj(result);
             if ("home".equals(screen)) render();
         });
@@ -233,6 +237,7 @@ public final class MainActivity extends Activity {
 
     private void nav(int id, String target) {
         findViewById(id).setOnClickListener(v -> {
+            if (!"home".equals(target)) lastSavedRide = null;
             screen = target;
             render();
         });
@@ -292,6 +297,7 @@ public final class MainActivity extends Activity {
     }
 
     private void renderHome() {
+        if (dashboardLoading) { showLoading(); return; }
         label(content, "Hello, " + str(user, "name"), dark ? PAPER : INK, 15);
         heading(content, "Your TripShare", 30, dark ? PAPER : INK);
         int groupCount = dashboard == null ? owned.length() : dashboard.optInt("groupCount");
@@ -302,6 +308,18 @@ public final class MainActivity extends Activity {
                     - dashboard.optLong("totalPaidPaise")), 37, INK);
             label(outstanding, (dashboard == null ? 0 : dashboard.optInt("journeyCount"))
                     + " rides · " + groupCount + " owned trips", INK, 15);
+        }
+        if (lastSavedRide != null) {
+            LinearLayout saved = card(content, BLUE);
+            label(saved, "RIDE SAVED", INK, 13);
+            heading(saved, str(lastSavedRide, "journeyDate") + " · "
+                    + money(lastSavedRide.optLong("fuelCostPaise")), 20, INK);
+            label(saved, "Tap to view this trip", INK, 13);
+            saved.setOnClickListener(v -> {
+                String groupId = str(lastSavedRide, "groupId");
+                lastSavedRide = null;
+                select(groupId, false);
+            });
         }
         section(content, "Payments");
         boolean anything = false;
@@ -659,7 +677,9 @@ public final class MainActivity extends Activity {
         ridePreview.setOrientation(LinearLayout.VERTICAL);
         content.addView(ridePreview);
         updatePreview();
-        button(content, "Save ride", LIME, this::saveRide);
+        TextView saveButton = button(content, rideSaving ? "Saving ride…" : "Save ride", LIME, this::saveRide);
+        saveButton.setEnabled(!rideSaving);
+        saveButton.setAlpha(rideSaving ? 0.6f : 1f);
     }
 
     private void renderRidePeople() {
@@ -734,6 +754,7 @@ public final class MainActivity extends Activity {
     }
 
     private void saveRide() {
+        if (rideSaving) return;
         if (ridePeople.isEmpty() || ridePricePaise <= 0 || fuelCost() <= 0) {
             error("Choose passengers, distance and a fuel price"); return;
         }
@@ -752,11 +773,25 @@ public final class MainActivity extends Activity {
             try { data.put("fuelQuoteToken", rideQuote); }
             catch (Exception e) { error("Could not prepare fuel quote"); return; }
         }
-        submit("journeys.create", data, () -> {
+        rideSaving = true;
+        render();
+        api.mutate("journeys.create", data, (result, failure) -> {
+            rideSaving = false;
+            if (failure != null) {
+                error(failure);
+                render();
+                return;
+            }
+            lastSavedRide = obj(result);
             ridePeople.clear();
             ridePricePaise = 0;
             rideQuote = null;
             rideKm = "";
+            screen = "home";
+            dashboardLoading = true;
+            dashboard = null;
+            render();
+            scroller.post(() -> scroller.scrollTo(0, 0));
             refresh();
         });
     }
