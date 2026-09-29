@@ -3,6 +3,7 @@ package app.tripshare.java;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
@@ -24,12 +25,12 @@ final class ApiClient {
 
     void query(String route, JSONObject input, Callback callback) {
         String path = "/api/trpc/" + route;
-        if (input != null) path += "?input=" + Uri.encode(json("json", input).toString());
+        if (input != null) path += "?input=" + Uri.encode(input.toString());
         request("GET", path, null, callback);
     }
 
     void mutate(String route, JSONObject input, Callback callback) {
-        request("POST", "/api/trpc/" + route, json("json", input), callback);
+        request("POST", "/api/trpc/" + route, input, callback);
     }
 
     void auth(String route, JSONObject input, Callback callback) {
@@ -66,6 +67,14 @@ final class ApiClient {
                     error = failure.optJSONObject("error") != null
                             ? failure.optJSONObject("error").optString("message", "Request failed")
                             : failure.optString("message", "Request failed (" + status + ")");
+                    if (error.startsWith("[")) {
+                        try {
+                            JSONObject first = new JSONArray(error).optJSONObject(0);
+                            if (first != null) error = first.optString("message", error);
+                        } catch (Exception ignored) { }
+                    }
+                    if (BuildConfig.DEBUG) Log.w("TripShareApi", method + " " + path.split("\\?", 2)[0]
+                            + " HTTP " + status + ": " + error);
                 } else if (!response.isEmpty()) {
                     Object parsed = response.startsWith("[") ? new JSONArray(response) : new JSONObject(response);
                     if (path.startsWith("/api/trpc/") && parsed instanceof JSONObject) {
@@ -76,7 +85,11 @@ final class ApiClient {
                     } else data = parsed;
                 }
                 connection.disconnect();
-            } catch (Exception e) { error = e.getMessage() == null ? "Connection failed" : e.getMessage(); }
+            } catch (Exception e) {
+                error = e.getMessage() == null ? "Connection failed" : e.getMessage();
+                if (BuildConfig.DEBUG) Log.w("TripShareApi", method + " " + path.split("\\?", 2)[0]
+                        + " failed: " + e.getClass().getSimpleName());
+            }
             Object result = data;
             String failure = error;
             main.post(() -> callback.complete(result, failure));
