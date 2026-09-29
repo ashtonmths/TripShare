@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ink"
+    android:orientation="vertical">
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="16dp">
+        <TextView
+            android:id="@+id/brand"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="TripShare"
+            android:textColor="@color/paper"
+            android:textSize="23sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/themeButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/card_blue"
+            android:gravity="center"
+            android:text="☀"
+            android:textColor="@color/ink"
+            android:textSize="21sp" />
+    </LinearLayout>
+    <ScrollView
+        android:id="@+id/scroller"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+        <LinearLayout
+            android:id="@+id/content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp" />
+    </ScrollView>
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="68dp"
+        android:background="@color/ink"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView android:id="@+id/navHome" style="@style/NavItem" android:text="⌂\nHome" />
+        <TextView android:id="@+id/navTrips" style="@style/NavItem" android:text="▣\nTrips" />
+        <TextView android:id="@+id/navRide" style="@style/NavItem" android:text="＋\nAdd ride" />
+        <TextView android:id="@+id/navProfile" style="@style/NavItem" android:text="●\nProfile" />
+    </LinearLayout>
+</LinearLayout>
